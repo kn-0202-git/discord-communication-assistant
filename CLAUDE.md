@@ -118,6 +118,7 @@ uv run python -m src.main
 | 機能の詳細を知りたい | docs/REQUIREMENTS.md |
 | 実装方法を知りたい | docs/ARCHITECTURE.md |
 | テスト方法を知りたい | docs/TEST_PLAN.md |
+| 残課題を確認したい | docs/ISSUES_STATUS.md |
 
 ### ファイル更新タイミング
 
@@ -130,6 +131,7 @@ uv run python -m src.main
 | ARCHITECTURE.md | 設計が変わった時 |
 | TEST_PLAN.md | テストケースを追加した時 |
 | DEVELOPMENT_PLAN.md | スケジュール・Issueが変わった時 |
+| ISSUES_STATUS.md | 課題を発見・対応した時 |
 
 ## 文書更新ルール
 
