@@ -1,0 +1,131 @@
+# =============================================================================
+# Discord Business Assistant - AI Configuration
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# AI Providers
+# APIキーは環境変数から取得（${VAR_NAME}形式）
+# -----------------------------------------------------------------------------
+ai_providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+      - text-embedding-3-small
+      - text-embedding-3-large
+      - whisper-1
+
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}
+    models:
+      - claude-3-5-sonnet-20241022
+      - claude-3-haiku-20240307
+
+  google:
+    api_key: ${GOOGLE_API_KEY}
+    models:
+      - gemini-1.5-pro
+      - gemini-1.5-flash
+
+  groq:
+    api_key: ${GROQ_API_KEY}
+    models:
+      - llama-3.1-70b-versatile
+      - llama-3.1-8b-instant
+      - mixtral-8x7b-32768
+
+  local:
+    base_url: ${LOCAL_LLM_BASE_URL}
+    models:
+      - llama3
+      - mistral
+      - codellama
+
+# -----------------------------------------------------------------------------
+# AI Routing
+# 機能ごとのデフォルトAI設定
+# -----------------------------------------------------------------------------
+ai_routing:
+  summary:
+    provider: openai
+    model: gpt-4o-mini
+
+  search_embedding:
+    provider: openai
+    model: text-embedding-3-small
+
+  rag_answer:
+    provider: anthropic
+    model: claude-3-5-sonnet-20241022
+
+  transcription:
+    provider: openai
+    model: whisper-1
+
+  notification:
+    provider: groq
+    model: llama-3.1-70b-versatile
+
+  similar_search:
+    provider: openai
+    model: gpt-4o-mini
+
+# -----------------------------------------------------------------------------
+# Workspace Overrides
+# 特定のWorkspaceでのAI設定上書き
+# -----------------------------------------------------------------------------
+workspace_overrides:
+  # 例：workspace_aでは要約にGeminiを使う
+  # workspace_a:
+  #   summary:
+  #     provider: google
+  #     model: gemini-1.5-flash
+
+# -----------------------------------------------------------------------------
+# Room Overrides
+# 特定のRoomでのAI設定上書き
+# -----------------------------------------------------------------------------
+room_overrides:
+  # 例：特定のRoomではローカルLLMを使う
+  # room_123:
+  #   summary:
+  #     provider: local
+  #     model: llama3
+
+# -----------------------------------------------------------------------------
+# Fallback Settings
+# AIエラー時のフォールバック設定
+# -----------------------------------------------------------------------------
+ai_fallback:
+  summary:
+    - provider: openai
+      model: gpt-4o-mini
+    - provider: google
+      model: gemini-1.5-flash
+    - provider: local
+      model: llama3
+
+  rag_answer:
+    - provider: anthropic
+      model: claude-3-5-sonnet-20241022
+    - provider: openai
+      model: gpt-4o
+    - provider: google
+      model: gemini-1.5-pro
+
+# -----------------------------------------------------------------------------
+# Rate Limiting
+# レート制限設定
+# -----------------------------------------------------------------------------
+rate_limits:
+  discord:
+    requests_per_second: 50
+
+  openai:
+    requests_per_minute: 60
+    tokens_per_minute: 90000
+
+  anthropic:
+    requests_per_minute: 50
+    tokens_per_minute: 100000
