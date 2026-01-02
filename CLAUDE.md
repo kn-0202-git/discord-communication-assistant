@@ -148,6 +148,29 @@ uv run python -m src.main
 | テスト追加 | TEST_PLAN.md |
 | コーディング規約変更 | CLAUDE.md |
 
+## Issue完了時の必須作業
+
+**Issueをマージする前に必ず実行すること（確認不要）：**
+
+1. **開発記録を残す**
+   - docs/DEVELOPMENT_LOG.md に追記
+   - 試行錯誤、エラー対応、技術解説（初心者向け）を含める
+
+2. **会話ログを残す**
+   - docs/CONVERSATION_LOG_{Issue番号}.md を作成
+   - 詳細なやり取りをそのまま記録
+
+3. **状態ファイルを更新**
+   - docs/DEVELOPMENT_PLAN.md: Issueの状態を更新
+   - docs/ISSUES_STATUS.md: 完了した課題に追加
+
+4. **関連文書を更新**
+   - 新しいファイルを作成した場合 → CLAUDE.md参照テーブルに追加
+   - 設計決定があった場合 → DECISIONS.md
+   - 議論があった場合 → DISCUSSION_SUMMARY.md
+
+**判断に迷う場合のみユーザーに確認する。基本は自動で実行。**
+
 ## 専門家視点
 
 開発時は以下の9つの専門家視点で検討すること。
