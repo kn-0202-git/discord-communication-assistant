@@ -119,6 +119,8 @@ uv run python -m src.main
 | 実装方法を知りたい | docs/ARCHITECTURE.md |
 | テスト方法を知りたい | docs/TEST_PLAN.md |
 | 残課題を確認したい | docs/ISSUES_STATUS.md |
+| 開発の経緯を知りたい | docs/DEVELOPMENT_LOG.md |
+| 詳細な会話を確認したい | docs/CONVERSATION_LOG_*.md |
 
 ### ファイル更新タイミング
 
@@ -132,6 +134,8 @@ uv run python -m src.main
 | TEST_PLAN.md | テストケースを追加した時 |
 | DEVELOPMENT_PLAN.md | スケジュール・Issueが変わった時 |
 | ISSUES_STATUS.md | 課題を発見・対応した時 |
+| DEVELOPMENT_LOG.md | Issue完了時（試行錯誤・技術解説を記録） |
+| CONVERSATION_LOG_*.md | Issue完了時（詳細な会話を記録） |
 
 ## 文書更新ルール
 
