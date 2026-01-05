@@ -4,13 +4,14 @@
 
 コマンド一覧:
     /summary [days] - 直近の会話を要約
+    /search {keyword} - 過去メッセージ検索
 
 Example:
     >>> from discord import app_commands
-    >>> from src.bot.commands import SummaryCommands
+    >>> from src.bot.commands import BotCommands
     >>>
     >>> tree = app_commands.CommandTree(client)
-    >>> summary_cog = SummaryCommands(tree, db, router)
+    >>> commands = BotCommands(tree, db, router)
 """
 
 from datetime import datetime
@@ -24,10 +25,10 @@ if TYPE_CHECKING:
     from src.db.database import Database
 
 
-class SummaryCommands:
-    """要約関連のスラッシュコマンド
+class BotCommands:
+    """Botのスラッシュコマンド
 
-    /summaryコマンドを提供します。
+    /summary, /searchなどのコマンドを提供します。
 
     Attributes:
         _tree: CommandTree インスタンス
@@ -35,13 +36,16 @@ class SummaryCommands:
         _router: AIRouter インスタンス
     """
 
+    # 検索結果の最大表示件数
+    MAX_SEARCH_RESULTS = 10
+
     def __init__(
         self,
         tree: app_commands.CommandTree,
         db: "Database",
         router: "AIRouter",
     ) -> None:
-        """SummaryCommandsを初期化
+        """BotCommandsを初期化
 
         Args:
             tree: discord.py CommandTree
@@ -55,6 +59,11 @@ class SummaryCommands:
 
     def _register_commands(self) -> None:
         """コマンドを登録"""
+        self._register_summary_command()
+        self._register_search_command()
+
+    def _register_summary_command(self) -> None:
+        """/summary コマンドを登録"""
 
         @self._tree.command(
             name="summary",
@@ -65,13 +74,23 @@ class SummaryCommands:
             interaction: discord.Interaction,
             days: int = 7,
         ) -> None:
-            """会話を要約するコマンド
-
-            Args:
-                interaction: Discord Interaction
-                days: 要約対象の日数
-            """
+            """会話を要約するコマンド"""
             await self._handle_summary(interaction, days)
+
+    def _register_search_command(self) -> None:
+        """/search コマンドを登録"""
+
+        @self._tree.command(
+            name="search",
+            description="過去のメッセージを検索します",
+        )
+        @app_commands.describe(keyword="検索キーワード")
+        async def search_command(
+            interaction: discord.Interaction,
+            keyword: str,
+        ) -> None:
+            """メッセージを検索するコマンド"""
+            await self._handle_search(interaction, keyword)
 
     async def _handle_summary(
         self,
@@ -102,7 +121,8 @@ class SummaryCommands:
             room = self._db.get_room_by_discord_id(str(channel.id))
             if not room:
                 await interaction.followup.send(
-                    "このチャンネルは登録されていません。メッセージを送信するとチャンネルが登録されます。"
+                    "このチャンネルは登録されていません。"
+                    "メッセージを送信するとチャンネルが登録されます。"
                 )
                 return
 
@@ -159,6 +179,80 @@ class SummaryCommands:
         except Exception as e:
             await interaction.followup.send(f"エラーが発生しました: {e}")
 
+    async def _handle_search(
+        self,
+        interaction: discord.Interaction,
+        keyword: str,
+    ) -> None:
+        """/search コマンドのハンドラ
+
+        Args:
+            interaction: Discord Interaction
+            keyword: 検索キーワード
+        """
+        # 即座に応答
+        await interaction.response.defer(thinking=True)
+
+        try:
+            guild = interaction.guild
+
+            if not guild:
+                await interaction.followup.send("このコマンドはサーバー内でのみ使用できます。")
+                return
+
+            # Workspaceを取得
+            workspace = self._db.get_workspace_by_discord_id(str(guild.id))
+            if not workspace:
+                await interaction.followup.send("このサーバーは登録されていません。")
+                return
+
+            # 検索を実行（Workspace内のみ）
+            results = self._db.search_messages(
+                workspace_id=workspace.id,
+                keyword=keyword,
+                limit=self.MAX_SEARCH_RESULTS,
+            )
+
+            if not results:
+                await interaction.followup.send(
+                    f"「{keyword}」に一致するメッセージが見つかりませんでした。"
+                )
+                return
+
+            # 結果を整形
+            embed = discord.Embed(
+                title=f"検索結果: 「{keyword}」",
+                description=f"{len(results)}件のメッセージが見つかりました",
+                color=discord.Color.green(),
+                timestamp=datetime.now(),
+            )
+
+            for i, msg in enumerate(results[: self.MAX_SEARCH_RESULTS], 1):
+                # メッセージ内容を短縮
+                content = msg.content
+                if len(content) > 100:
+                    content = content[:100] + "..."
+
+                # 日時をフォーマット
+                timestamp = msg.timestamp.strftime("%Y-%m-%d %H:%M")
+
+                embed.add_field(
+                    name=f"{i}. {msg.sender_name} ({timestamp})",
+                    value=content,
+                    inline=False,
+                )
+
+            embed.set_footer(text="このWorkspace内で検索されました")
+
+            await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            await interaction.followup.send(f"エラーが発生しました: {e}")
+
+
+# 後方互換性のためのエイリアス
+SummaryCommands = BotCommands
+
 
 async def setup_commands(
     client: discord.Client,
@@ -176,5 +270,5 @@ async def setup_commands(
         設定済みの CommandTree
     """
     tree = app_commands.CommandTree(client)
-    SummaryCommands(tree, db, router)
+    BotCommands(tree, db, router)
     return tree
