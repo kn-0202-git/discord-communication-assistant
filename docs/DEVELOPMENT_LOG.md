@@ -926,4 +926,245 @@ tests/test_ai_router.py::TestConfigLoading::test_router_from_yaml_with_env_vars 
 
 ---
 
+## 2025-01-05: Issue #8-14 AI連携・統合テスト・試験運用準備
+
+### 開始時刻: 約 01:00
+
+### 目標
+Phase 1の最終段階として、以下を完了する:
+- Issue #8: OpenAIプロバイダー実装
+- Issue #9: /summaryコマンド実装
+- Issue #10: /searchコマンド実装
+- Issue #11: 統合Room通知
+- Issue #12: 他AIプロバイダー（Anthropic, Google, Groq）
+- Issue #13: 統合テスト
+- Issue #14: 試験運用準備
+
+### 実施内容
+
+#### Issue #8: OpenAIプロバイダー実装
+
+**ファイル**: `src/ai/providers/openai.py`
+
+**実装内容**:
+- `OpenAIProvider` クラス
+- `generate()`: テキスト生成（Chat Completions API）
+- `embed()`: ベクトル化（Embeddings API）
+- エラーハンドリング（RateLimitError, AuthenticationError等）
+
+**技術解説**:
+- `AsyncOpenAI` を使用して非同期API呼び出し
+- `ChatCompletionMessageParam` で型安全なメッセージ構築
+- generate_optionsで柔軟なパラメータ指定（temperature, max_tokens等）
+
+**テスト**: `tests/test_openai_provider.py` - 9件
+
+---
+
+#### Issue #9: /summaryコマンド実装
+
+**ファイル**:
+- `src/ai/summarizer.py`
+- `src/bot/commands.py`
+
+**実装内容**:
+- `Summarizer` クラス: メッセージを要約
+- `/summary [days]` スラッシュコマンド
+- 直近n日間のメッセージを取得し、AIで要約
+
+**技術解説（スラッシュコマンド）**:
+- `app_commands.CommandTree` でコマンドを登録
+- `@tree.command()` デコレータでコマンド定義
+- Discord UIでオートコンプリートが効く
+
+**テスト**: `tests/test_commands.py` - 10件
+
+---
+
+#### Issue #10: /searchコマンド実装
+
+**ファイル**: `src/bot/commands.py` に追加
+
+**実装内容**:
+- `/search {keyword}` スラッシュコマンド
+- Workspace内のメッセージをキーワード検索
+- 結果をDiscord Embedで表示
+
+**設計判断**:
+- 検索結果は最大10件に制限
+- **理由**: Discord Embedの文字数制限（4096文字）を超えないため
+
+---
+
+#### Issue #11: 統合Room通知
+
+**ファイル**:
+- `src/bot/notifier.py`
+- `src/db/database.py` に追加メソッド
+
+**実装内容**:
+- `AggregationNotifier` クラス
+- `notify_new_message()`: メッセージを統合Roomに通知
+- `_find_similar_messages()`: 類似過去案件を検索
+- RoomLink経由で通知先を取得
+
+**追加したDBメソッド**:
+- `get_target_rooms()`: リンク先Room取得
+- `get_aggregation_rooms()`: Workspace内の統合Room取得
+- `get_room_by_id()`: Room ID検索
+
+**技術解説（通知フロー）**:
+```
+メッセージ受信
+    ↓
+RoomLink確認（source → target）
+    ↓
+target が aggregation room なら通知
+    ↓
+Discord Embed作成・送信
+```
+
+**テスト**: `tests/test_notifier.py` - 9件
+
+---
+
+#### Issue #12: 他AIプロバイダー
+
+**ファイル**:
+- `src/ai/providers/anthropic.py`
+- `src/ai/providers/google.py`
+- `src/ai/providers/groq.py`
+- `src/ai/providers/__init__.py`
+
+**実装内容**:
+
+| プロバイダー | generate | embed | 備考 |
+|--------------|----------|-------|------|
+| Anthropic | ✅ | ❌ | Messages API使用 |
+| Google | ✅ | ✅ | Gemini API使用 |
+| Groq | ✅ | ❌ | OpenAI互換API |
+
+**技術解説（エラーハンドリング）**:
+- 各プロバイダー固有のエラーを共通エラークラスにマッピング
+- 例: `anthropic.BadRequestError` → `AIProviderError`
+- 例: `openai.RateLimitError` → `AIQuotaExceededError`
+
+**テスト**:
+- `tests/test_anthropic_provider.py` - 9件
+- `tests/test_google_provider.py` - 9件
+- `tests/test_groq_provider.py` - 9件
+
+---
+
+#### Issue #13: 統合テスト
+
+**ファイル**: `tests/test_integration.py`
+
+**テストケース**: 7件
+
+| テスト | 内容 |
+|--------|------|
+| INT-01 | メッセージ保存フロー（Workspace→Room→Message→検索） |
+| INT-02 | Workspace/Room分離（AのデータがBに見えない） |
+| INT-03 | AIルーターとプロバイダー連携 |
+| INT-04 | 要約機能の統合テスト |
+| INT-05 | 通知フロー（メッセージ→統合Room通知） |
+| 追加 | RoomLink経由のRoom取得 |
+| 追加 | Workspace内の統合Room取得 |
+
+**発生した問題と解決**:
+
+1. **データベースURLエラー**:
+   - 問題: `Database(":memory:")` でURLパース失敗
+   - 原因: SQLAlchemyは `sqlite:///:memory:` 形式を期待
+   - 解決: Databaseクラスで `:memory:` を自動変換
+
+2. **テーブル未作成エラー**:
+   - 問題: `sqlalchemy.exc.OperationalError: no such table: workspaces`
+   - 原因: `create_tables()` 未呼び出し
+   - 解決: fixtureで `database.create_tables()` を追加
+
+3. **isinstance チェック失敗**:
+   - 問題: `isinstance(channel, discord.TextChannel)` が常にFalse
+   - 原因: `MagicMock()` は型情報がない
+   - 解決: `MagicMock(spec=discord.TextChannel)` でspec指定
+
+4. **AIRouter テストのパッチ失敗**:
+   - 問題: `src.ai.router.OpenAIProvider` が存在しない
+   - 原因: AIRouterはプロバイダー情報のみ返し、インスタンス生成しない
+   - 解決: テストを分離（ルーター情報取得 + プロバイダー生成）
+
+---
+
+#### Issue #14: 試験運用準備
+
+**ファイル**: `src/main.py` 更新
+
+**実装内容**:
+- AIRouter初期化
+- スラッシュコマンド登録（/summary, /search）
+- 統合Room通知サービス連携
+- 起動時ログ強化
+
+**統合されたコンポーネント**:
+```
+main.py
+  ├── Database（メッセージ保存）
+  ├── LocalStorage（添付ファイル保存）
+  ├── AIRouter（AI機能）
+  ├── MessageHandler（メッセージ処理）
+  ├── BotCommands（スラッシュコマンド）
+  └── AggregationNotifier（統合Room通知）
+```
+
+### 最終テスト結果
+
+```
+tests/test_ai_router.py: 18 passed
+tests/test_anthropic_provider.py: 9 passed
+tests/test_bot.py: 10 passed
+tests/test_commands.py: 10 passed
+tests/test_db.py: 10 passed
+tests/test_google_provider.py: 9 passed
+tests/test_groq_provider.py: 9 passed
+tests/test_handler.py: 13 passed
+tests/test_integration.py: 7 passed
+tests/test_notifier.py: 9 passed
+tests/test_openai_provider.py: 9 passed
+tests/test_storage.py: 9 passed
+tests/test_summarizer.py: 8 passed
+
+============================== 120 passed ==============================
+```
+
+### 成果物
+
+| ファイル | 内容 |
+|----------|------|
+| src/ai/providers/openai.py | OpenAIプロバイダー |
+| src/ai/providers/anthropic.py | Anthropicプロバイダー |
+| src/ai/providers/google.py | Googleプロバイダー |
+| src/ai/providers/groq.py | Groqプロバイダー |
+| src/ai/summarizer.py | 要約機能 |
+| src/bot/commands.py | スラッシュコマンド |
+| src/bot/notifier.py | 統合Room通知 |
+| src/main.py | エントリーポイント（更新） |
+| tests/test_*.py | 計120テスト |
+
+### 学んだこと
+
+1. **統合テストの重要性**: ユニットテストだけでなく、コンポーネント間の連携を確認する統合テストが重要
+2. **MagicMockのspec指定**: `spec=ClassName` で型チェックを通過できる
+3. **データベースURL形式**: SQLAlchemyは厳密なURL形式を期待する
+4. **責務の分離**: AIRouterはルーティング判断のみ、インスタンス生成は利用側の責務
+5. **環境変数管理**: config.yamlで `${VAR}` 形式を使い、.envでシークレット管理
+6. **コマンド同期**: スラッシュコマンドは `tree.sync()` でDiscordに登録が必要
+
+### 次のステップ
+
+- mainにマージ
+- Phase 2の計画策定
+
+---
+
 （今後の開発記録をここに追記）
