@@ -741,4 +741,189 @@ Workspace/Room分離が正しく動作していることを確認する。
 
 ---
 
+## 2025-01-05: Issue #7 AI基盤（base, router）
+
+### 開始時刻: 約 00:30
+
+### 目標
+AIプロバイダーの抽象化レイヤーとルーティング機能を実装する。
+
+### 背景
+- 複数のAIプロバイダー（OpenAI, Anthropic, Google, Groq, Local）を統一的に扱いたい
+- 機能（purpose）ごとに異なるプロバイダーを使い分けたい
+- Workspace/Room単位で設定を上書きできるようにしたい
+
+### 実施内容
+
+#### Step 1: ブランチ作成
+- **コマンド**: `git checkout -b feature/issue-7`
+- **結果**: ✅ 成功
+
+#### Step 2: TDDでテストを先に書く
+- **ファイル**: `tests/test_ai_router.py`
+- **テストケース**: 18件（TEST_PLAN.md の RTR-01〜RTR-05 に対応）
+
+| テスト | 内容 |
+|--------|------|
+| RTR-01 | デフォルト設定でプロバイダー取得 |
+| RTR-02 | Workspace設定で上書き |
+| RTR-03 | Room設定で上書き（Workspaceより優先） |
+| RTR-04 | 未設定プロバイダーでエラー |
+| RTR-05 | フォールバックプロバイダー情報取得 |
+| 追加 | バリデーション、設定読み込み、環境変数展開 |
+
+- **技術解説（TDD）**:
+  - まずテストを書いてから実装することで、仕様が明確になる
+  - テストが「設計書」の役割を果たす
+  - 実装後の動作確認が容易
+
+#### Step 3: base.py 実装
+- **ファイル**: `src/ai/base.py`
+- **実装内容**:
+  - `AIProvider` 抽象基底クラス
+  - `generate()`: テキスト生成（抽象メソッド）
+  - `embed()`: ベクトル化（抽象メソッド）
+  - `generate_with_context()`: コンテキスト付き生成（デフォルト実装）
+  - エラークラス: `AIProviderError`, `AIProviderNotConfiguredError`, `AIQuotaExceededError`, `AIConnectionError`, `AIResponseError`
+
+- **技術解説（抽象基底クラス）**:
+  - `ABC` (Abstract Base Class) を継承
+  - `@abstractmethod` で抽象メソッドを定義
+  - 実装クラス（OpenAIProvider等）は必ずこれらを実装する必要がある
+  - 共通インターフェースにより、プロバイダーの差し替えが容易
+
+- **設計判断**:
+  - `name` と `model` をプロパティとして定義
+  - **理由**: プロバイダー名とモデル名はインスタンス作成後に変更されないため、プロパティが適切
+  - `generate_with_context()` はデフォルト実装を提供
+  - **理由**: 多くのプロバイダーで同様の処理になるため、継承先での重複を避ける
+
+#### Step 4: router.py 実装
+- **ファイル**: `src/ai/router.py`
+- **実装内容**:
+  - `AIRouter` クラス
+  - `get_provider_info()`: 機能に応じたプロバイダー情報を取得
+  - `get_fallback_info()`: フォールバックプロバイダー情報のリスト取得
+  - `get_provider_config()`: プロバイダーの詳細設定取得
+  - `from_yaml()`: YAMLファイルから設定読み込み（環境変数展開対応）
+  - `from_default_config()`: デフォルト設定ファイルから読み込み
+
+- **技術解説（ルーティングの優先順位）**:
+  ```
+  1. Room設定（room_overrides）
+  2. Workspace設定（workspace_overrides）
+  3. グローバル設定（ai_routing）
+  ```
+  - 例: 特定のRoomだけローカルLLMを使いたい場合、room_overridesで上書き可能
+  - 例: 特定のWorkspaceだけ安価なモデルを使いたい場合、workspace_overridesで上書き可能
+
+- **技術解説（環境変数展開）**:
+  - config.yaml で `${OPENAI_API_KEY}` のような形式で環境変数を参照可能
+  - `_expand_env_vars()` メソッドで正規表現を使って展開
+  - セキュリティ: APIキーをconfig.yamlに直書きせずに済む
+
+- **設計判断**:
+  - `AIRouter` はプロバイダー情報（provider名, model名）のみを返す
+  - **理由**: 実際のプロバイダーインスタンス生成は Issue #8 以降で実装
+  - 責務の分離: ルーティング判断と インスタンス生成を分ける
+
+#### Step 5: __init__.py 更新
+- **ファイル**: `src/ai/__init__.py`
+- **実装内容**:
+  - 主要クラスとエラークラスをエクスポート
+  - docstringでパッケージの概要を記述
+
+#### Step 6: テスト実行（1回目）
+- **コマンド**: `source .venv/bin/activate && python -m pytest tests/test_ai_router.py -v`
+- **結果**: ✅ **成功** (18 passed in 0.03s)
+
+#### Step 7: リントチェック（1回目）
+- **コマンド**: `ruff check src/ai/ tests/test_ai_router.py`
+- **結果**: ❌ **エラー発生**
+  ```
+  F541 f-string without any placeholders
+  F401 `unittest.mock.AsyncMock` imported but unused
+  F401 `unittest.mock.MagicMock` imported but unused
+  F401 `unittest.mock.patch` imported but unused
+  ```
+
+- **原因**:
+  1. `f"provider lookup"` で `f` が不要
+  2. テストで未使用のインポートがあった
+
+- **解決策**:
+  1. `f"provider lookup"` → `"provider lookup"`
+  2. 未使用インポートを削除
+
+#### Step 8: リントチェック（2回目）
+- **コマンド**: `ruff check src/ai/ tests/test_ai_router.py`
+- **結果**: ✅ **成功** (All checks passed!)
+
+- **コマンド**: `pyright src/ai/`
+- **結果**: ✅ **成功** (0 errors, 0 warnings, 0 informations)
+
+#### Step 9: 全テスト実行
+- **コマンド**: `python -m pytest tests/ -v`
+- **結果**: ✅ **成功** (60 passed in 0.33s)
+  - AI Router: 18件
+  - Bot: 10件
+  - DB: 10件
+  - Handler: 13件
+  - Storage: 9件
+
+#### Step 10: コミット
+- **コマンド**: `git add ... && git commit -m "feat: implement AI base layer and router (Issue #7)"`
+- **結果**: ❌ → ✅（ruff-formatが自動修正後、再コミットで成功）
+  ```
+  [feature/issue-7 38a76e1] feat: implement AI base layer and router (Issue #7)
+   4 files changed, 846 insertions(+)
+  ```
+
+### 成果物
+| ファイル | 内容 |
+|----------|------|
+| src/ai/base.py | AIProvider抽象クラス、エラークラス（210行） |
+| src/ai/router.py | AIRouter（255行） |
+| src/ai/__init__.py | エクスポート設定（35行） |
+| tests/test_ai_router.py | 18テストケース（280行） |
+
+### テスト結果
+```
+tests/test_ai_router.py::TestAIRouter::test_get_default_provider PASSED
+tests/test_ai_router.py::TestAIRouter::test_get_default_provider_rag PASSED
+tests/test_ai_router.py::TestAIRouter::test_workspace_override PASSED
+tests/test_ai_router.py::TestAIRouter::test_workspace_override_not_configured PASSED
+tests/test_ai_router.py::TestAIRouter::test_room_override PASSED
+tests/test_ai_router.py::TestAIRouter::test_room_override_priority PASSED
+tests/test_ai_router.py::TestAIRouter::test_room_override_not_configured PASSED
+tests/test_ai_router.py::TestAIRouter::test_provider_not_configured PASSED
+tests/test_ai_router.py::TestAIRouter::test_provider_not_in_providers PASSED
+tests/test_ai_router.py::TestAIRouter::test_get_fallback_providers PASSED
+tests/test_ai_router.py::TestAIRouter::test_get_fallback_empty_if_not_configured PASSED
+tests/test_ai_router.py::TestAIRouterValidation::test_empty_config PASSED
+tests/test_ai_router.py::TestAIRouterValidation::test_missing_ai_providers PASSED
+tests/test_ai_router.py::TestAIProviderBase::test_mock_provider_generate PASSED
+tests/test_ai_router.py::TestAIProviderBase::test_mock_provider_embed PASSED
+tests/test_ai_router.py::TestAIProviderBase::test_provider_properties PASSED
+tests/test_ai_router.py::TestConfigLoading::test_router_from_yaml_file PASSED
+tests/test_ai_router.py::TestConfigLoading::test_router_from_yaml_with_env_vars PASSED
+
+============================== 60 passed (全テスト) ==============================
+```
+
+### 学んだこと
+1. **抽象化の設計**: 抽象基底クラスで共通インターフェースを定義することで、プロバイダーの差し替えが容易になる
+2. **ルーティングの優先順位**: Room > Workspace > グローバルの優先順位で設定を上書きできる設計
+3. **環境変数展開**: config.yamlで `${VAR}` 形式を使うことで、シークレットをコードに含めない
+4. **TDDの効果**: テストを先に書くことで、実装の方向性が明確になり、手戻りが少ない
+5. **責務の分離**: ルーティング判断とインスタンス生成を分けることで、各クラスの責務が明確になる
+
+### 次のステップ
+- CONVERSATION_LOG_ISSUE7.md を作成
+- DEVELOPMENT_PLAN.md / ISSUES_STATUS.md を更新
+- mainにマージ
+- Issue #8（OpenAIプロバイダー）に進む
+
+---
+
 （今後の開発記録をここに追記）
