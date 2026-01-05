@@ -420,4 +420,212 @@ tests/test_bot.py::TestMessageListenerCallback::test_message_callback_is_called 
 
 ---
 
+## 2025-01-04: Issue #3 メッセージ＋添付ファイル保存（統合版）
+
+### 開始時刻: 約 19:00
+
+### 目標
+- Discord環境を構築し、実際に動作確認できるようにする
+- メッセージ受信時にDBに自動保存する機能を実装
+- 添付ファイル（画像など）をローカルに保存する機能を実装
+- Issue #3と#4を統合して効率化
+
+### 背景
+ユーザーからの重要な指摘:
+- 「ずっとバックエンド作っているよね？実際に動かして試せる環境を作った方がよくない？」
+- Issue #3と#4（メッセージ保存と添付ファイル保存）は密結合しているので統合することに決定
+- 先にDiscord環境を構築し、手動テストできるようにする方針
+
+### 実施内容
+
+#### Step 1: 計画作成
+- ユーザーと議論し、以下を決定:
+  - Issue #3と#4を統合
+  - Discord構成: 1サーバー（WorkspaceA）、3チャンネル（room1, room2, room3-aggregation）
+  - テスト方法: 自分のアカウントで手動テスト
+
+#### Step 2: ブランチ作成
+- **コマンド**: `git checkout -b feature/issue-3`
+- **結果**: ✅ 成功
+
+#### Step 3: Discord環境セットアップ手順書作成
+- **ファイル**: `docs/DISCORD_SETUP.md`
+- **内容**:
+  - Discord Developer PortalでBot作成手順
+  - MESSAGE CONTENT INTENT有効化（重要）
+  - Bot権限設定
+  - テスト用サーバー作成手順
+  - 動作確認方法
+
+#### Step 4: 依存パッケージ追加
+- **ファイル**: `pyproject.toml`
+- **追加**:
+  - `aiohttp>=3.9.0` - HTTPクライアント（添付ファイルダウンロード用）
+  - `python-dotenv>=1.0.0` - 環境変数読み込み
+- **コマンド**: `uv sync --extra dev`
+- **結果**: ✅ 成功
+
+#### Step 5: ストレージ層実装
+- **ファイル**:
+  - `src/storage/base.py` - 抽象基底クラス（将来Google Drive等に差し替え可能）
+  - `src/storage/local.py` - ローカルファイルシステム実装
+  - `src/storage/__init__.py` - エクスポート設定
+
+- **設計判断**:
+  - ディレクトリ構成: `{base_path}/{workspace_id}/{room_id}/{date}/`
+  - ファイル名重複時は連番を付与（`photo.jpg` → `photo_1.jpg`）
+  - 非同期I/O（aiofiles）でパフォーマンス確保
+
+- **技術解説（抽象化）**:
+  - `StorageProvider` 抽象クラスを定義
+  - `LocalStorage` はローカル実装
+  - 将来 `GoogleDriveStorage` を追加しても、同じインターフェースで使える
+  - CLAUDE.mdの「抽象化を意識」に従った設計
+
+#### Step 6: ストレージテスト
+- **ファイル**: `tests/test_storage.py`
+- **テストケース**: 9件
+  - ファイル保存
+  - ディレクトリ構成確認
+  - ファイル名重複処理
+  - 複数回の重複
+  - ファイル取得
+  - 存在しないファイルでエラー
+  - ファイル削除
+  - 存在しないファイル削除
+  - バイナリファイル（画像）保存
+
+- **コマンド**: `uv run pytest tests/test_storage.py -v`
+- **結果**: ✅ **成功** (9 passed)
+
+#### Step 7: メッセージハンドラー実装
+- **ファイル**: `src/bot/handlers.py`
+- **実装内容**:
+  - `MessageHandler` クラス
+  - メッセージ受信時にWorkspace/Room自動作成
+  - メッセージをDBに保存
+  - 添付ファイルをダウンロードしてローカル保存
+  - メッセージタイプ判定（text/image/video/voice）
+
+- **設計判断**:
+  - DMはスキップ（guild_id=Noneの場合）
+  - Workspace/Roomが存在しない場合は自動作成
+  - ファイルタイプはcontent_typeから判定
+
+- **技術解説（aiohttp）**:
+  - `aiohttp.ClientSession()` で非同期HTTPリクエスト
+  - Discordの添付ファイルURLからファイルをダウンロード
+  - `async with session.get(url)` でストリーミング取得
+
+#### Step 8: ハンドラーテスト
+- **ファイル**: `tests/test_handler.py`
+- **テストケース**: 13件
+  - Workspace/Room自動作成
+  - メッセージDB保存
+  - DMスキップ
+  - Room分離（Room1とRoom2のデータが混ざらない）
+  - 画像添付ファイル処理
+  - メッセージタイプ判定（text/image/video/voice）
+  - ファイルタイプ判定
+  - 既存Workspace/Room再利用
+  - Room3からRoom1のデータが見える（RoomLink経由）
+  - Room2からRoom1のデータが見えない
+
+- **コマンド**: `uv run pytest tests/test_handler.py -v`
+- **結果**: ❌ 1件失敗（discord_message_idのUNIQUE制約違反）
+- **原因**: テストで同じmessage_idを使っていた
+- **解決**: テストで異なるmessage_idを使用
+- **再実行**: ✅ **成功** (13 passed)
+
+#### Step 9: エントリーポイント作成
+- **ファイル**: `src/main.py`
+- **実装内容**:
+  - 環境変数からDISCORD_TOKEN読み込み
+  - DB初期化
+  - ストレージ初期化
+  - MessageHandler初期化
+  - Bot起動
+
+- **技術解説（dotenv）**:
+  - `load_dotenv()` で `.env` ファイルを読み込み
+  - `os.getenv("DISCORD_TOKEN")` で環境変数取得
+  - `.env` は `.gitignore` に含まれているので、シークレットが漏れない
+
+#### Step 10: 全テスト・リント確認
+- **コマンド**: `uv run pytest tests/ -v`
+- **結果**: ✅ **成功** (42 passed)
+- **コマンド**: `uv run ruff check src/`
+- **結果**: ✅ **成功** (All checks passed!)
+- **コマンド**: `uv run pyright src/`
+- **結果**: ✅ **成功** (0 errors, 0 warnings)
+
+#### Step 11: 手動テスト
+
+**Discord環境構築（ユーザー作業）:**
+1. Discord Developer PortalでBot作成
+2. MESSAGE CONTENT INTENT有効化
+3. テストサーバー作成（room1, room2, room3-aggregation）
+4. Bot招待
+5. `.env` ファイル作成
+
+**トラブルシューティング:**
+- 最初、メッセージが保存されなかった
+- 原因: MESSAGE CONTENT INTENT が無効だった
+- 解決: Developer Portalで有効化 → Bot再起動
+
+**テスト結果:**
+| テスト | 結果 |
+|--------|------|
+| Room1にテキストメッセージ | ✅ message_id=1として保存 |
+| Room2にテキストメッセージ | ✅ 別のRoom（id=2）として保存 |
+| Room1に画像送信 | ✅ `data/files/1/1/2026-01-04/IMG_4106.jpg` に保存 |
+
+**DB確認:**
+```sql
+-- Rooms
+1|Room-1457257672784089120|1457257672784089120  -- room1
+2|Room-1457257846654767145|1457257846654767145  -- room2
+
+-- Messages
+1|1|kn_0303|test|text
+2|2|kn_0303|test2|text
+3|1|kn_0303||image
+```
+
+### 成果物
+| ファイル | 内容 |
+|----------|------|
+| docs/DISCORD_SETUP.md | Discordセットアップ手順書 |
+| src/storage/base.py | ストレージ抽象クラス（63行） |
+| src/storage/local.py | ローカルストレージ実装（103行） |
+| src/storage/__init__.py | エクスポート設定 |
+| src/bot/handlers.py | メッセージハンドラー（210行） |
+| src/main.py | Botエントリーポイント（81行） |
+| tests/test_storage.py | ストレージテスト（9件） |
+| tests/test_handler.py | ハンドラーテスト（13件） |
+
+### テスト結果
+```
+tests/test_bot.py: 10 passed
+tests/test_db.py: 10 passed
+tests/test_handler.py: 13 passed
+tests/test_storage.py: 9 passed
+
+============================== 42 passed ==============================
+```
+
+### 学んだこと
+1. **実環境テストの重要性**: ユニットテストだけでなく、実際のDiscord環境でテストすることでMESSAGE CONTENT INTENTの問題を発見できた
+2. **抽象化の設計**: StorageProviderを抽象化したことで、将来Google Driveに移行しやすくなった
+3. **Issue統合の判断**: 密結合した機能（メッセージ保存と添付ファイル保存）は統合して実装する方が効率的
+4. **環境変数管理**: `.env` + `python-dotenv` でシークレット管理が簡単
+5. **非同期処理**: aiofiles + aiohttpで非同期I/Oを実現
+
+### 次のステップ
+- コミット・プッシュ
+- mainにマージ
+- Issue #5（Workspace/Room分離の強化）に進む
+
+---
+
 （今後の開発記録をここに追記）
