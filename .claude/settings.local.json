@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\ndocs: add development log and conversation log for Issue #1\n\n- DEVELOPMENT_LOG.md: 試行錯誤と技術解説を含む開発記録\n- CONVERSATION_LOG_ISSUE1.md: 詳細な会話ログ\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git checkout:*)",
+      "Bash(git merge feature/issue-1 --no-ff -m \"$\\(cat <<''EOF''\nMerge branch ''feature/issue-1'' - DB設計・実装\n\n## 実装内容\n- SQLAlchemyモデル: Workspace, Room, RoomLink, Message, Attachment, Reminder\n- CRUD操作: Database クラス\n- テスト: 10テストケース（全てパス）\n\n## ファイル\n- src/db/models.py \\(172行\\)\n- src/db/database.py \\(314行\\)\n- src/db/__init__.py\n- tests/test_db.py \\(321行\\)\n- docs/DEVELOPMENT_LOG.md\n- docs/CONVERSATION_LOG_ISSUE1.md\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(python -m pytest:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(source:*)",
+      "Bash(ruff check:*)",
+      "Bash(pyright:*)",
+      "Bash(git merge feature/issue-7 --no-ff -m \"$\\(cat <<''EOF''\nMerge branch ''feature/issue-7'' - AI基盤実装\n\n## 実装内容\n- AIProvider: 抽象基底クラス（generate, embed）\n- AIRouter: 機能に応じてプロバイダーを選択\n- エラークラス: AIProviderError, AIProviderNotConfiguredError等\n\n## 設計\n- ルーティング優先順位: Room > Workspace > グローバル\n- 環境変数展開対応（$VAR形式）\n- フォールバック設定対応\n\n## ファイル\n- src/ai/base.py \\(210行\\)\n- src/ai/router.py \\(255行\\)\n- src/ai/__init__.py \\(35行\\)\n- tests/test_ai_router.py \\(280行\\)\n- docs/DEVELOPMENT_LOG.md\n- docs/CONVERSATION_LOG_ISSUE7.md\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\nEOF\n\\)\")",
+      "Bash(git merge feature/issue-8 --no-ff -m \"$\\(cat <<''EOF''\nMerge branch ''feature/issue-8'' - Phase 1完了 \\(Issue #8-14\\)\n\n## 実装内容\n\n### Issue #8: OpenAIプロバイダー\n- generate/embed実装、9テスト\n\n### Issue #9: /summaryコマンド  \n- Summarizer + スラッシュコマンド、10テスト\n\n### Issue #10: /searchコマンド\n- キーワード検索実装\n\n### Issue #11: 統合Room通知\n- AggregationNotifier、9テスト\n\n### Issue #12: 他AIプロバイダー\n- Anthropic/Google/Groq、27テスト\n\n### Issue #13: 統合テスト\n- 7統合テスト\n\n### Issue #14: 試験運用準備\n- main.py統合、全120テスト通過\n\n## ファイル追加\n- src/ai/providers/openai.py\n- src/ai/providers/anthropic.py\n- src/ai/providers/google.py\n- src/ai/providers/groq.py\n- src/ai/summarizer.py\n- src/bot/commands.py\n- src/bot/notifier.py\n- tests/test_* \\(13ファイル\\)\n- docs/CONVERSATION_LOG_ISSUE8-14.md\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\nEOF\n\\)\")",
+      "Bash(/opt/homebrew/bin/uv run pytest:*)",
+      "Bash(/Users/kosukenakatani/.local/bin/uv run pytest:*)",
+      "Bash(/Users/kosukenakatani/.local/bin/uv run ruff check src/)",
+      "Bash(/Users/kosukenakatani/.local/bin/uv run pyright:*)",
+      "Bash(/Users/kosukenakatani/.local/bin/uv run ruff check:*)"
+    ]
+  }
+}
