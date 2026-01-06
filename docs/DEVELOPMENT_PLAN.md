@@ -181,7 +181,7 @@ VISION.mdで定義した最終ゴールと、各Phaseでの対応状況:
 |-------|--------|----------|------|
 | #15 | datetime.utcnow()修正 | datetime.now(UTC)に置換 | ✅完了 |
 | #16 | GuildListenerテスト追加 | on_guild_join/removeテスト | ✅完了 |
-| #17 | レート制限対策 | asyncio.Semaphore/Queue実装 | 未着手 |
+| #17 | レート制限対策 | asyncio.Semaphore/クールダウン実装 | ✅完了 |
 
 ### Step 2: リマインダー機能
 
