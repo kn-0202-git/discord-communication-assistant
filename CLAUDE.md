@@ -137,6 +137,24 @@ uv run python -m src.main
 | DEVELOPMENT_LOG.md | Issue完了時（試行錯誤・技術解説を記録） |
 | CONVERSATION_LOG_*.md | Issue完了時（詳細な会話を記録） |
 
+### 問題解決フロー
+
+開発プロセス上の問題（文書作成忘れ、手順の曖昧さなど）が発生した場合：
+
+```
+問題発生
+    ↓
+① ISSUES_STATUS.md「プロセス改善」セクションに記録
+   - 問題内容、発見日、優先度
+    ↓
+② 対応中は status を 🟡 に
+    ↓
+③ 解決したら:
+   - TROUBLESHOOTING.md「開発プロセス」セクションに詳細を追加
+   - DEVELOPMENT_LOG.md に記録
+   - ISSUES_STATUS.md を 🟢 完了 に
+```
+
 ## 文書更新ルール
 
 | 変更内容 | 更新する文書 |
