@@ -1184,4 +1184,161 @@ tests/test_summarizer.py: 8 passed
 
 ---
 
+## 2025-01-06: Phase 2 Step 1 技術課題解消 (#15-17)
+
+### 開始時刻: セッション開始時
+
+### 目標
+
+Phase 2の最初のステップとして、Phase 1で発見された技術課題を解消する:
+- Issue #15: datetime.utcnow() を datetime.now(UTC) に修正
+- Issue #16: GuildListener のテスト追加
+- Issue #17: レート制限対策
+
+### 背景
+
+Phase 1完了時点で以下の課題が保留されていた:
+1. `datetime.utcnow()` はPython 3.12で非推奨
+2. GuildListenerクラスのテストカバレッジが不足
+3. 統合Room通知がDiscordのレート制限に引っかかる可能性
+
+### 実施内容
+
+#### Issue #15: datetime.utcnow() 修正
+
+**ファイル**: `src/db/models.py`
+
+**変更内容**:
+```python
+# Before
+from datetime import datetime
+created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+# After
+from datetime import UTC, datetime
+
+def _utc_now() -> datetime:
+    """現在のUTC時刻を返す（Python 3.12対応）."""
+    return datetime.now(UTC)
+
+created_at = mapped_column(DateTime, default=_utc_now)
+```
+
+**技術解説**:
+- Python 3.12で `datetime.utcnow()` が非推奨になった
+- `datetime.now(UTC)` が推奨される新しい書き方
+- `datetime.UTC` は Python 3.11+ で使用可能なエイリアス
+- SQLAlchemyの `default` には呼び出し可能オブジェクトを渡す必要があるため、ヘルパー関数 `_utc_now()` を作成
+
+**影響箇所**: 3箇所（Workspace.created_at, Room.created_at, Message.timestamp）
+
+---
+
+#### Issue #16: GuildListener テスト追加
+
+**ファイル**: `tests/test_bot.py`
+
+**追加テスト**: 4件
+1. `test_create_guild_listener`: GuildListener作成テスト
+2. `test_on_guild_join`: サーバー参加イベント処理テスト
+3. `test_on_guild_remove`: サーバー退出イベント処理テスト
+4. `test_on_guild_join_with_zero_members`: 境界値テスト（メンバー数0）
+
+**技術解説**:
+- `MagicMock(spec=discord.Guild)` で型安全なモックを作成
+- `on_guild_join` は guild_id, guild_name, member_count, owner_id を返す
+- `on_guild_remove` は guild_id, guild_name のみ返す（退出時は詳細情報不要）
+
+---
+
+#### Issue #17: レート制限対策
+
+**ファイル**: `src/bot/notifier.py`
+
+**追加機能**:
+1. `asyncio.Semaphore` で同時リクエスト数を制限（最大5）
+2. チャンネルごとのクールダウン（1秒）
+
+**実装詳細**:
+```python
+class AggregationNotifier:
+    MAX_CONCURRENT_REQUESTS = 5
+    CHANNEL_COOLDOWN_SECONDS = 1.0
+
+    def __init__(self, ...):
+        self._semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
+        self._channel_last_sent: dict[str, float] = {}
+
+    async def _send_notification(self, ...):
+        async with self._semaphore:
+            await self._wait_for_cooldown(channel_id)
+            # 送信処理
+            self._channel_last_sent[channel_id] = time.monotonic()
+
+    async def _wait_for_cooldown(self, channel_id: str):
+        if channel_id in self._channel_last_sent:
+            elapsed = time.monotonic() - self._channel_last_sent[channel_id]
+            remaining = self.CHANNEL_COOLDOWN_SECONDS - elapsed
+            if remaining > 0:
+                await asyncio.sleep(remaining)
+```
+
+**技術解説**:
+- `asyncio.Semaphore`: 同時実行数を制限する同期プリミティブ
+- `time.monotonic()`: 単調増加する時刻（システム時刻変更の影響を受けない）
+- `async with self._semaphore`: セマフォを取得し、ブロック終了時に自動解放
+
+**テスト**: 4件追加
+1. `test_rate_limit_semaphore_initialized`: セマフォ初期化確認
+2. `test_rate_limit_cooldown_tracking`: クールダウン追跡確認
+3. `test_wait_for_cooldown_no_previous_send`: 初回送信時の即時返却
+4. `test_wait_for_cooldown_after_cooldown_period`: クールダウン経過後の即時返却
+
+### 最終テスト結果
+
+```
+tests/test_bot.py: 14 passed (10 → 14, +4)
+tests/test_notifier.py: 13 passed (9 → 13, +4)
+Total: 128 passed (120 → 128, +8)
+```
+
+### 成果物
+
+| ファイル | 変更内容 |
+|----------|----------|
+| src/db/models.py | _utc_now() ヘルパー追加、3箇所修正 |
+| src/bot/notifier.py | レート制限機能追加 |
+| tests/test_bot.py | GuildListenerテスト4件追加 |
+| tests/test_notifier.py | レート制限テスト4件追加 |
+
+### 学んだこと
+
+1. **Python非推奨機能の追跡**: Python 3.12でdatetime.utcnow()が非推奨になるなど、バージョンアップで変わる機能に注意
+2. **レート制限の設計**: Semaphore + チャンネルごとクールダウンの組み合わせが効果的
+3. **time.monotonic()の活用**: システム時刻変更の影響を受けない時間計測
+
+### 反省点（PDCA）
+
+**Plan**: Issue #15-17を順次実装する計画だった
+
+**Do**: 実装・テスト・マージを完了
+
+**Check**:
+- DEVELOPMENT_LOG.mdへの記録が遅れた
+- CONVERSATION_LOGを作成しなかった
+- Issue完了時の必須作業（CLAUDE.mdで定義）を忘れていた
+
+**Act**:
+- 今後はIssue完了直後に記録を作成する
+- TodoWriteに「記録作成」タスクを必ず含める
+- セッション終了前に記録の確認を行う
+
+### 次のステップ
+
+- Phase 2 Step 2: リマインダー機能 (#18-21)
+- /remind, /reminders コマンド実装
+- 期限通知機能
+
+---
+
 （今後の開発記録をここに追記）
