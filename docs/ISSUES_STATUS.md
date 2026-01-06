@@ -34,7 +34,7 @@
 
 | Issue | 課題 | 優先度 | status | 備考 |
 |-------|------|--------|--------|------|
-| #15 | datetime.utcnow()修正 | 中 | 🔴 未対応 | datetime.now(UTC)に置換 |
+| #15 | datetime.utcnow()修正 | 中 | 🟢 完了 | datetime.now(UTC)に置換 |
 | #16 | GuildListenerテスト追加 | 低 | 🔴 未対応 | on_guild_join/removeテスト |
 | #17 | レート制限対策 | 中 | 🔴 未対応 | asyncio.Semaphore/Queue実装 |
 
