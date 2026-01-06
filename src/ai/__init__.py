@@ -30,6 +30,7 @@ from src.ai.base import (
     AIResponseError,
 )
 from src.ai.router import AIRouter
+from src.ai.summarizer import Summarizer, SummaryError
 
 __all__ = [
     "AIProvider",
@@ -39,4 +40,6 @@ __all__ = [
     "AIConnectionError",
     "AIResponseError",
     "AIRouter",
+    "Summarizer",
+    "SummaryError",
 ]

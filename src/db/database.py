@@ -181,6 +181,46 @@ class Database:
         links = self.session.execute(stmt).scalars().all()
         return [link.source_room for link in links]
 
+    def get_target_rooms(self, source_room_id: int) -> list[Room]:
+        """Get target rooms linked from a source room.
+
+        Args:
+            source_room_id: Source room ID.
+
+        Returns:
+            List of target rooms.
+        """
+        stmt = select(RoomLink).where(RoomLink.source_room_id == source_room_id)
+        links = self.session.execute(stmt).scalars().all()
+        return [link.target_room for link in links]
+
+    def get_aggregation_rooms(self, workspace_id: int) -> list[Room]:
+        """Get aggregation rooms in a workspace.
+
+        Args:
+            workspace_id: Workspace ID.
+
+        Returns:
+            List of aggregation rooms.
+        """
+        stmt = select(Room).where(
+            Room.workspace_id == workspace_id,
+            Room.room_type == "aggregation",
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def get_room_by_id(self, room_id: int) -> Room | None:
+        """Get room by ID.
+
+        Args:
+            room_id: Room ID.
+
+        Returns:
+            Room object or None.
+        """
+        stmt = select(Room).where(Room.id == room_id)
+        return self.session.execute(stmt).scalar_one_or_none()
+
     # Message operations
 
     def save_message(
