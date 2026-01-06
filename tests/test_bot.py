@@ -6,7 +6,7 @@ import discord
 import pytest
 
 from src.bot.client import BotClient
-from src.bot.listeners import MessageListener
+from src.bot.listeners import GuildListener, MessageListener
 
 
 class TestBotClient:
@@ -153,3 +153,75 @@ class TestMessageListenerCallback:
 
         # コールバックが呼ばれたことを確認
         mock_callback.assert_called_once()
+
+
+class TestGuildListener:
+    """GuildListenerのテスト"""
+
+    def test_create_guild_listener(self):
+        """正常系: GuildListenerを作成できる"""
+        mock_client = MagicMock(spec=discord.Client)
+        listener = GuildListener(mock_client)
+        assert listener is not None
+        assert listener.client == mock_client
+
+    @pytest.mark.asyncio
+    async def test_on_guild_join(self):
+        """正常系: サーバー参加イベントを処理する"""
+        mock_client = MagicMock(spec=discord.Client)
+        listener = GuildListener(mock_client)
+
+        # サーバー情報を作成
+        mock_guild = MagicMock(spec=discord.Guild)
+        mock_guild.id = 123456789
+        mock_guild.name = "テストサーバー"
+        mock_guild.member_count = 100
+        mock_guild.owner_id = 111111111
+
+        # on_guild_joinを呼び出し
+        result = await listener.on_guild_join(mock_guild)
+
+        # サーバー情報が正しく返される
+        assert result is not None
+        assert result["guild_id"] == 123456789
+        assert result["guild_name"] == "テストサーバー"
+        assert result["member_count"] == 100
+        assert result["owner_id"] == 111111111
+
+    @pytest.mark.asyncio
+    async def test_on_guild_remove(self):
+        """正常系: サーバー退出イベントを処理する"""
+        mock_client = MagicMock(spec=discord.Client)
+        listener = GuildListener(mock_client)
+
+        # サーバー情報を作成
+        mock_guild = MagicMock(spec=discord.Guild)
+        mock_guild.id = 123456789
+        mock_guild.name = "テストサーバー"
+
+        # on_guild_removeを呼び出し
+        result = await listener.on_guild_remove(mock_guild)
+
+        # サーバー情報が正しく返される
+        assert result is not None
+        assert result["guild_id"] == 123456789
+        assert result["guild_name"] == "テストサーバー"
+        # member_countやowner_idは含まれない
+        assert "member_count" not in result
+        assert "owner_id" not in result
+
+    @pytest.mark.asyncio
+    async def test_on_guild_join_with_zero_members(self):
+        """境界値: メンバー数0のサーバー参加"""
+        mock_client = MagicMock(spec=discord.Client)
+        listener = GuildListener(mock_client)
+
+        mock_guild = MagicMock(spec=discord.Guild)
+        mock_guild.id = 999999999
+        mock_guild.name = "空のサーバー"
+        mock_guild.member_count = 0
+        mock_guild.owner_id = 222222222
+
+        result = await listener.on_guild_join(mock_guild)
+
+        assert result["member_count"] == 0
