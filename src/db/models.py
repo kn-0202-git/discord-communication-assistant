@@ -3,7 +3,7 @@
 REQUIREMENTS.md #7 データモデルに基づく実装。
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -16,6 +16,11 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+def _utc_now() -> datetime:
+    """現在のUTC時刻を返す（Python 3.12対応）."""
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
@@ -37,7 +42,7 @@ class Workspace(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     discord_server_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     ai_config: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now)
 
     # Relationships
     rooms: Mapped[list["Room"]] = relationship("Room", back_populates="workspace")
@@ -60,7 +65,7 @@ class Room(Base):
     # Room type: topic / member / aggregation
     room_type: Mapped[str] = mapped_column(String(50), nullable=False)
     ai_config: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now)
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="rooms")
@@ -122,7 +127,7 @@ class Message(Base):
     # Message type: text / image / video / voice
     message_type: Mapped[str] = mapped_column(String(50), nullable=False)
     discord_message_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=_utc_now)
 
     # Relationships
     room: Mapped["Room"] = relationship("Room", back_populates="messages")
