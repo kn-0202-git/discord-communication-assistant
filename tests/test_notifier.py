@@ -6,8 +6,11 @@ TEST_PLAN.md で定義されたテストケース:
 - NOT-03: test_no_aggregation_rooms - 統合Roomがない場合
 - NOT-04: test_channel_not_found - チャンネルが見つからない場合
 - NOT-05: test_create_notification_embed - Embed作成
+- NOT-06: test_rate_limit_semaphore - セマフォによる同時リクエスト制限
+- NOT-07: test_rate_limit_cooldown - チャンネルクールダウン
 """
 
+import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
@@ -289,3 +292,142 @@ class TestSetupNotifier:
         assert notifier.db == mock_db
         assert notifier.bot == mock_bot
         assert notifier.router == mock_router
+
+
+class TestRateLimit:
+    """レート制限のテスト"""
+
+    @pytest.fixture
+    def mock_db(self) -> MagicMock:
+        """Databaseモック"""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_bot(self) -> MagicMock:
+        """Discord Botモック"""
+        return MagicMock()
+
+    @pytest.fixture
+    def sample_room(self) -> Room:
+        """サンプルRoom"""
+        room = MagicMock(spec=Room)
+        room.id = 1
+        room.workspace_id = 1
+        room.name = "Test Room"
+        room.discord_channel_id = "123456789"
+        room.room_type = "topic"
+        return room
+
+    @pytest.fixture
+    def sample_aggregation_room(self) -> Room:
+        """サンプル統合Room"""
+        room = MagicMock(spec=Room)
+        room.id = 2
+        room.workspace_id = 1
+        room.name = "Aggregation Room"
+        room.discord_channel_id = "987654321"
+        room.room_type = "aggregation"
+        return room
+
+    @pytest.fixture
+    def sample_message(self) -> Message:
+        """サンプルMessage"""
+        message = MagicMock(spec=Message)
+        message.id = 1
+        message.room_id = 1
+        message.sender_name = "Test User"
+        message.sender_id = "user123"
+        message.content = "これはテストメッセージです"
+        message.message_type = "text"
+        message.discord_message_id = "msg123"
+        message.timestamp = datetime.now()
+        return message
+
+    # NOT-06: セマフォによる同時リクエスト制限
+    def test_rate_limit_semaphore_initialized(
+        self,
+        mock_db: MagicMock,
+        mock_bot: MagicMock,
+    ) -> None:
+        """セマフォが初期化される"""
+        from src.bot.notifier import AggregationNotifier
+
+        notifier = AggregationNotifier(db=mock_db, bot=mock_bot)
+
+        # セマフォが正しく初期化されていることを確認
+        assert hasattr(notifier, "_semaphore")
+        assert isinstance(notifier._semaphore, asyncio.Semaphore)
+
+    # NOT-07: チャンネルクールダウン
+    @pytest.mark.asyncio
+    async def test_rate_limit_cooldown_tracking(
+        self,
+        mock_db: MagicMock,
+        mock_bot: MagicMock,
+        sample_room: Room,
+        sample_aggregation_room: Room,
+        sample_message: Message,
+    ) -> None:
+        """チャンネルごとのクールダウンが追跡される"""
+        import discord
+
+        from src.bot.notifier import AggregationNotifier
+
+        mock_db.get_target_rooms.return_value = [sample_aggregation_room]
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.send = AsyncMock()
+        mock_bot.get_channel.return_value = mock_channel
+
+        notifier = AggregationNotifier(db=mock_db, bot=mock_bot)
+
+        # 最初の通知
+        await notifier.notify_new_message(
+            room=sample_room,
+            message=sample_message,
+        )
+
+        # チャンネルの最終送信時刻が記録されている
+        channel_id = sample_aggregation_room.discord_channel_id
+        assert channel_id in notifier._channel_last_sent
+
+    @pytest.mark.asyncio
+    async def test_wait_for_cooldown_no_previous_send(
+        self,
+        mock_db: MagicMock,
+        mock_bot: MagicMock,
+    ) -> None:
+        """以前の送信がない場合は即座に返る"""
+        from src.bot.notifier import AggregationNotifier
+
+        notifier = AggregationNotifier(db=mock_db, bot=mock_bot)
+
+        # 待機時間なしで完了
+        await notifier._wait_for_cooldown("unknown_channel")
+
+    @pytest.mark.asyncio
+    async def test_wait_for_cooldown_after_cooldown_period(
+        self,
+        mock_db: MagicMock,
+        mock_bot: MagicMock,
+    ) -> None:
+        """クールダウン期間後は即座に返る"""
+        import time
+
+        from src.bot.notifier import AggregationNotifier
+
+        notifier = AggregationNotifier(db=mock_db, bot=mock_bot)
+
+        # クールダウン期間より前に送信したことにする
+        channel_id = "test_channel"
+        notifier._channel_last_sent[channel_id] = (
+            time.monotonic() - notifier.CHANNEL_COOLDOWN_SECONDS - 1
+        )
+
+        # 待機時間なしで完了
+        start = time.monotonic()
+        await notifier._wait_for_cooldown(channel_id)
+        elapsed = time.monotonic() - start
+
+        # 待機していないことを確認（0.1秒未満）
+        assert elapsed < 0.1
