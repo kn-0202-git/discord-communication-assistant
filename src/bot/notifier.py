@@ -7,7 +7,9 @@ Example:
     >>> await notifier.notify_new_message(room_id=1, message=message)
 """
 
+import asyncio
 import logging
+import time
 from datetime import datetime
 
 import discord
@@ -30,6 +32,7 @@ class AggregationNotifier:
 
     新しいメッセージが投稿された際に、リンクされた統合Roomへ通知を送信します。
     オプションで類似過去案件の検索も行います。
+    レート制限対策として、同時リクエスト数の制限とクールダウンを実装しています。
 
     Attributes:
         db: Databaseインスタンス
@@ -39,6 +42,10 @@ class AggregationNotifier:
 
     # 類似検索で取得する最大メッセージ数
     MAX_SIMILAR_MESSAGES = 3
+
+    # レート制限設定
+    MAX_CONCURRENT_REQUESTS = 5  # 同時リクエスト数の上限
+    CHANNEL_COOLDOWN_SECONDS = 1.0  # チャンネルごとのクールダウン（秒）
 
     def __init__(
         self,
@@ -56,6 +63,11 @@ class AggregationNotifier:
         self.db = db
         self.bot = bot
         self.router = router
+
+        # レート制限用のセマフォ（同時リクエスト数を制限）
+        self._semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
+        # チャンネルごとの最終送信時刻
+        self._channel_last_sent: dict[str, float] = {}
 
     async def notify_new_message(
         self,
@@ -117,30 +129,55 @@ class AggregationNotifier:
     ) -> None:
         """統合Roomに通知を送信.
 
+        レート制限対策:
+        - セマフォで同時リクエスト数を制限
+        - チャンネルごとにクールダウンを適用
+
         Args:
             aggregation_room: 通知先の統合Room
             source_room: メッセージの送信元Room
             message: 新しいメッセージ
             similar_messages: 類似過去案件のリスト
         """
-        # Discordチャンネルを取得
-        channel = self.bot.get_channel(int(aggregation_room.discord_channel_id))
-        if channel is None:
-            channel = await self.bot.fetch_channel(int(aggregation_room.discord_channel_id))
+        channel_id = aggregation_room.discord_channel_id
 
-        if not isinstance(channel, discord.TextChannel):
-            raise NotificationError(
-                f"Channel {aggregation_room.discord_channel_id} is not a text channel"
+        # セマフォで同時リクエスト数を制限
+        async with self._semaphore:
+            # チャンネルごとのクールダウンを確認
+            await self._wait_for_cooldown(channel_id)
+
+            # Discordチャンネルを取得
+            channel = self.bot.get_channel(int(channel_id))
+            if channel is None:
+                channel = await self.bot.fetch_channel(int(channel_id))
+
+            if not isinstance(channel, discord.TextChannel):
+                raise NotificationError(f"Channel {channel_id} is not a text channel")
+
+            # Embedを作成
+            embed = self._create_notification_embed(
+                source_room=source_room,
+                message=message,
+                similar_messages=similar_messages,
             )
 
-        # Embedを作成
-        embed = self._create_notification_embed(
-            source_room=source_room,
-            message=message,
-            similar_messages=similar_messages,
-        )
+            await channel.send(embed=embed)
 
-        await channel.send(embed=embed)
+            # 最終送信時刻を更新
+            self._channel_last_sent[channel_id] = time.monotonic()
+
+    async def _wait_for_cooldown(self, channel_id: str) -> None:
+        """チャンネルのクールダウンを待機.
+
+        Args:
+            channel_id: Discord チャンネルID
+        """
+        if channel_id in self._channel_last_sent:
+            elapsed = time.monotonic() - self._channel_last_sent[channel_id]
+            remaining = self.CHANNEL_COOLDOWN_SECONDS - elapsed
+            if remaining > 0:
+                logger.debug(f"Rate limit: waiting {remaining:.2f}s for channel {channel_id}")
+                await asyncio.sleep(remaining)
 
     def _create_notification_embed(
         self,
