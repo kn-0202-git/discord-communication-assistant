@@ -1433,4 +1433,167 @@ Issue開始時に以下をTodoに含める：
 
 ---
 
+## 2025-01-08: Codexレビュー対応（セキュリティ・品質改善）
+
+### 目標
+
+Phase 2実装開始前に、Codexレビューで指摘されたセキュリティ・品質問題を解決する。
+
+### 背景
+
+ユーザーから `codex_review_md` ファイルのレビュー結果を確認し、必要な対応を行うよう依頼があった。
+以下の4つの問題が特定された：
+
+| # | 問題 | 優先度 | 影響 |
+|---|------|--------|------|
+| 1 | naive/aware datetime比較 | 高 | 日付フィルタリングが不正確になる可能性 |
+| 2 | summarizer が OpenAI 固定 | 中 | config.yaml の設定が無視される |
+| 3 | パストラバーサル脆弱性 | 中 | 悪意あるファイル名で任意パスに書き込み可能 |
+| 4 | 添付ファイルサイズ無制限 | 中 | DoS攻撃のリスク |
+
+### 実施内容
+
+#### Issue 1 (HIGH): naive/aware datetime比較問題
+
+**ファイル**: `src/ai/summarizer.py`
+
+**問題**:
+```python
+# 修正前: naive datetime と aware datetime の比較でエラー
+cutoff = datetime.now() - timedelta(days=days)
+```
+
+**解決**:
+```python
+# 修正後: UTC aware datetime を使用
+from datetime import UTC
+cutoff = datetime.now(UTC) - timedelta(days=days)
+default_timestamp = datetime.min.replace(tzinfo=UTC)
+```
+
+**技術解説**:
+- Python の datetime には「naive」（タイムゾーン情報なし）と「aware」（タイムゾーン情報あり）がある
+- 両者を比較すると `TypeError: can't compare offset-naive and offset-aware datetimes`
+- メッセージの timestamp は aware なので、比較対象も aware にする必要がある
+
+#### Issue 2 (MED): マルチプロバイダー対応
+
+**ファイル**: `src/ai/summarizer.py`
+
+**問題**:
+- `_get_provider()` が OpenAI 固定でハードコードされていた
+- config.yaml で Anthropic/Google/Groq を設定しても無視される
+
+**解決**:
+```python
+# プロバイダー名とクラスのマッピング
+_PROVIDER_CLASSES: dict[str, type[AIProvider]] = {
+    "openai": OpenAIProvider,
+    "anthropic": AnthropicProvider,
+    "google": GoogleProvider,
+    "groq": GroqProvider,
+}
+
+def _get_provider(self, workspace_id, room_id):
+    provider_info = self._router.get_provider_info("summary", ...)
+    provider_name = provider_info["provider"]
+    provider_class = self._PROVIDER_CLASSES.get(provider_name)
+    return cast(Any, provider_class)(
+        api_key=provider_config["api_key"],
+        model=provider_info["model"],
+    )
+```
+
+**技術解説**:
+- `cast(Any, provider_class)` で型チェックを回避
+- 各プロバイダーは同一シグネチャ `(api_key, model)` を持つ
+- pyright エラーを回避しつつ、実行時の柔軟性を確保
+
+#### Issue 3 (MED): パストラバーサル対策
+
+**ファイル**: `src/storage/local.py`
+
+**問題**:
+```python
+# 修正前: ユーザー入力のファイル名をそのまま使用
+target_path = target_dir / filename  # "../../../etc/passwd" が可能
+```
+
+**解決**:
+```python
+def _sanitize_filename(self, filename: str) -> str:
+    """ファイル名をサニタイズしてパストラバーサルを防止"""
+    safe_name = Path(filename).name  # ベース名のみ取得
+    if not safe_name or safe_name in (".", ".."):
+        safe_name = "unnamed_file"
+    return safe_name
+```
+
+**技術解説**:
+- `Path(filename).name` でディレクトリ部分を除去
+- `../../../etc/passwd` → `passwd` に変換される
+- OWASP Top 10: パストラバーサル（A01:2021 - Broken Access Control）対策
+
+#### Issue 4 (MED): 添付ファイルサイズ上限
+
+**ファイル**: `src/bot/handlers.py`
+
+**問題**:
+- 添付ファイルのサイズ制限がなかった
+- 大きなファイルでメモリ枯渇やDoS攻撃のリスク
+
+**解決**:
+```python
+# Discord無料プランの上限に合わせる
+MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024  # 25MB
+
+# サイズチェック（2箇所）
+file_size = att.get("size", 0)
+if file_size > self.MAX_ATTACHMENT_SIZE:
+    logger.warning(f"Skipping {att['filename']}: size exceeds limit")
+    continue
+
+# Content-Lengthでも再チェック
+content_length = response.headers.get("Content-Length")
+if content_length and int(content_length) > self.MAX_ATTACHMENT_SIZE:
+    continue
+```
+
+### テスト修正
+
+**問題**: テストが失敗
+- `_PROVIDER_CLASSES` がクラス定義時に参照をキャプチャするため、`patch("src.ai.summarizer.OpenAIProvider")` が効かない
+
+**解決**: `patch.object()` パターンに変更
+```python
+# 修正前
+with patch("src.ai.summarizer.OpenAIProvider"):
+    result = await summarizer.summarize(messages)
+
+# 修正後
+with patch.object(summarizer, "_get_provider", return_value=mock_provider):
+    result = await summarizer.summarize(messages)
+```
+
+### 最終結果
+
+```
+✅ 128 tests passed
+✅ pyright: 0 errors
+✅ ruff: All checks passed
+```
+
+### 学んだこと
+
+1. **datetime は常に UTC aware を使う**: `datetime.now(UTC)` を標準に
+2. **ユーザー入力は必ずサニタイズ**: ファイル名、パス、URLなど
+3. **リソース制限を設ける**: サイズ、件数、時間など
+4. **モッキングは対象の特性を理解**: クラス変数 vs インスタンスメソッド
+
+### 次のステップ
+
+- Phase 2 Step 2: リマインダー機能 (#18-21) の実装開始
+
+---
+
 （今後の開発記録をここに追記）
