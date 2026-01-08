@@ -35,6 +35,24 @@ class LocalStorage(StorageProvider):
         """
         self.base_path = Path(base_path)
 
+    def _sanitize_filename(self, filename: str) -> str:
+        """ファイル名をサニタイズしてパストラバーサルを防止する.
+
+        Args:
+            filename: 元のファイル名
+
+        Returns:
+            サニタイズされたファイル名
+        """
+        # パス区切り文字を除去してベース名のみ取得
+        safe_name = Path(filename).name
+
+        # 空になった場合はデフォルト名を使用
+        if not safe_name or safe_name in (".", ".."):
+            safe_name = "unnamed_file"
+
+        return safe_name
+
     async def save_file(
         self,
         content: bytes,
@@ -46,6 +64,7 @@ class LocalStorage(StorageProvider):
 
         ディレクトリ構成: {base_path}/{workspace_id}/{room_id}/{date}/
         ファイル名が重複する場合は連番を付与する。
+        ファイル名はサニタイズされ、パストラバーサルを防止する。
 
         Args:
             content: ファイルの内容（バイナリ）
@@ -56,6 +75,9 @@ class LocalStorage(StorageProvider):
         Returns:
             保存先のパス
         """
+        # ファイル名をサニタイズ（パストラバーサル対策）
+        safe_filename = self._sanitize_filename(filename)
+
         date_str = datetime.now().strftime("%Y-%m-%d")
         target_dir = self.base_path / str(workspace_id) / str(room_id) / date_str
 
@@ -63,7 +85,7 @@ class LocalStorage(StorageProvider):
         target_dir.mkdir(parents=True, exist_ok=True)
 
         # ファイル名重複時の処理
-        target_path = target_dir / filename
+        target_path = target_dir / safe_filename
         if target_path.exists():
             stem = target_path.stem
             suffix = target_path.suffix

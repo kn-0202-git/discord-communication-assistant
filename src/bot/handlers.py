@@ -27,6 +27,7 @@ class MessageHandler:
     Attributes:
         db: Databaseインスタンス
         storage: LocalStorageインスタンス
+        MAX_ATTACHMENT_SIZE: 添付ファイルの最大サイズ（バイト）
 
     Example:
         >>> db = Database()
@@ -34,6 +35,9 @@ class MessageHandler:
         >>> handler = MessageHandler(db=db, storage=storage)
         >>> await handler.handle_message(message_data)
     """
+
+    # 添付ファイルの最大サイズ（25MB = Discord無料プランの上限）
+    MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024
 
     def __init__(
         self,
@@ -171,6 +175,15 @@ class MessageHandler:
         async with aiohttp.ClientSession() as session:
             for att in attachments:
                 try:
+                    # サイズチェック（DoS対策）
+                    file_size = att.get("size", 0)
+                    if file_size > self.MAX_ATTACHMENT_SIZE:
+                        logger.warning(
+                            f"Skipping {att['filename']}: size {file_size} exceeds "
+                            f"limit {self.MAX_ATTACHMENT_SIZE}"
+                        )
+                        continue
+
                     # ファイルをダウンロード
                     async with session.get(att["url"]) as response:
                         if response.status != 200:
@@ -179,6 +192,16 @@ class MessageHandler:
                                 f"status {response.status}"
                             )
                             continue
+
+                        # Content-Lengthでも再チェック
+                        content_length = response.headers.get("Content-Length")
+                        if content_length and int(content_length) > self.MAX_ATTACHMENT_SIZE:
+                            logger.warning(
+                                f"Skipping {att['filename']}: Content-Length "
+                                f"{content_length} exceeds limit"
+                            )
+                            continue
+
                         content = await response.read()
 
                     # ローカルストレージに保存

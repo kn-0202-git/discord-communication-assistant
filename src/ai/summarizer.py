@@ -9,10 +9,13 @@ Example:
     >>> summary = await summarizer.summarize(messages, days=7)
 """
 
-from datetime import datetime, timedelta
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
-from src.ai.base import AIProviderError
+from src.ai.base import AIProvider, AIProviderError
+from src.ai.providers.anthropic import AnthropicProvider
+from src.ai.providers.google import GoogleProvider
+from src.ai.providers.groq import GroqProvider
 from src.ai.providers.openai import OpenAIProvider
 from src.ai.router import AIRouter
 
@@ -116,8 +119,9 @@ class Summarizer:
         Returns:
             フィルタリングされたメッセージのリスト
         """
-        cutoff = datetime.now() - timedelta(days=days)
-        return [msg for msg in messages if msg.get("timestamp", datetime.min) >= cutoff]
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        default_timestamp = datetime.min.replace(tzinfo=UTC)
+        return [msg for msg in messages if msg.get("timestamp", default_timestamp) >= cutoff]
 
     def _build_prompt(self, messages: list[dict[str, Any]]) -> str:
         """要約用プロンプトを生成
@@ -159,13 +163,21 @@ class Summarizer:
 
         return prompt
 
+    # プロバイダー名とクラスのマッピング
+    _PROVIDER_CLASSES: dict[str, type[AIProvider]] = {
+        "openai": OpenAIProvider,
+        "anthropic": AnthropicProvider,
+        "google": GoogleProvider,
+        "groq": GroqProvider,
+    }
+
     def _get_provider(
         self, workspace_id: str | None = None, room_id: str | None = None
-    ) -> OpenAIProvider:
+    ) -> AIProvider:
         """AIプロバイダーを取得
 
-        現在はOpenAIProviderのみサポート。
-        将来的に他のプロバイダーもサポート予定。
+        config.yamlの設定に基づいて適切なプロバイダーを返す。
+        OpenAI, Anthropic, Google, Groqをサポート。
 
         Args:
             workspace_id: Workspace ID
@@ -183,16 +195,20 @@ class Summarizer:
                 workspace_id=workspace_id,
                 room_id=room_id,
             )
-            provider_config = self._router.get_provider_config(provider_info["provider"])
+            provider_name = provider_info["provider"]
+            provider_config = self._router.get_provider_config(provider_name)
 
-            # 現在はOpenAIのみサポート
-            if provider_info["provider"] != "openai":
+            # プロバイダークラスを取得
+            provider_class = self._PROVIDER_CLASSES.get(provider_name)
+            if provider_class is None:
                 raise SummaryError(
-                    f"現在 {provider_info['provider']} プロバイダーは未実装です。"
-                    f"OpenAIプロバイダーを使用してください。"
+                    f"未対応のプロバイダー: {provider_name}。"
+                    f"対応プロバイダー: {list(self._PROVIDER_CLASSES.keys())}"
                 )
 
-            return OpenAIProvider(
+            # 全プロバイダーは api_key, model を受け取る共通インターフェース
+            # cast(Any, ...) で型チェックを回避（各プロバイダーは同一シグネチャを持つ）
+            return cast(Any, provider_class)(
                 api_key=provider_config["api_key"],
                 model=provider_info["model"],
             )

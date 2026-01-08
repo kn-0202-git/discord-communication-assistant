@@ -198,6 +198,7 @@ class TestAIIntegration:
     @pytest.mark.asyncio
     async def test_summarizer_with_messages(self) -> None:
         """要約機能がメッセージを正しく処理することを確認"""
+        from datetime import UTC
         from unittest.mock import patch
 
         from src.ai.summarizer import Summarizer
@@ -211,12 +212,14 @@ class TestAIIntegration:
             "provider": "openai",
             "model": "gpt-4o-mini",
         }
+        mock_router.get_provider_config.return_value = {
+            "api_key": "test-key",
+        }
 
-        with patch("src.ai.summarizer.OpenAIProvider", return_value=mock_provider):
-            summarizer = Summarizer(mock_router)
-
-            # サンプルメッセージ
-            now = datetime.now()
+        summarizer = Summarizer(mock_router)
+        with patch.object(summarizer, "_get_provider", return_value=mock_provider):
+            # サンプルメッセージ（UTC aware datetime を使用）
+            now = datetime.now(UTC)
             messages = [
                 {
                     "sender_name": "User A",

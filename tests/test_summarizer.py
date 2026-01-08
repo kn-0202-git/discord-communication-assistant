@@ -8,7 +8,7 @@ TEST_PLAN.md で定義されたテストケース:
 - SUM-05: test_summarize_ai_error_handling - AIエラーハンドリング
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -42,12 +42,15 @@ class TestSummarizer:
             "provider": "openai",
             "model": "gpt-4o-mini",
         }
+        router.get_provider_config.return_value = {
+            "api_key": "test-key",
+        }
         return router
 
     @pytest.fixture
     def sample_messages(self) -> list[dict[str, Any]]:
-        """サンプルメッセージ"""
-        now = datetime.now()
+        """サンプルメッセージ（UTC aware datetime を使用）"""
+        now = datetime.now(UTC)
         return [
             {
                 "sender_name": "田中",
@@ -82,8 +85,8 @@ class TestSummarizer:
         """メッセージ要約が正常に動作する"""
         from src.ai.summarizer import Summarizer
 
-        with patch("src.ai.summarizer.OpenAIProvider", return_value=mock_ai_provider):
-            summarizer = Summarizer(mock_router)
+        summarizer = Summarizer(mock_router)
+        with patch.object(summarizer, "_get_provider", return_value=mock_ai_provider):
             result = await summarizer.summarize(sample_messages)
 
         assert "決定事項" in result
@@ -109,7 +112,7 @@ class TestSummarizer:
         """指定した日数でメッセージをフィルタリングできる"""
         from src.ai.summarizer import Summarizer
 
-        now = datetime.now()
+        now = datetime.now(UTC)
         messages = [
             {
                 "sender_name": "A",
@@ -128,24 +131,23 @@ class TestSummarizer:
             },
         ]
 
-        with patch("src.ai.summarizer.OpenAIProvider", return_value=mock_ai_provider):
-            summarizer = Summarizer(mock_router)
-
+        summarizer = Summarizer(mock_router)
+        with patch.object(summarizer, "_get_provider", return_value=mock_ai_provider):
             # 7日以内のメッセージのみを要約
             await summarizer.summarize(messages, days=7)
 
-        # generate が呼び出されていることを確認
-        mock_ai_provider.generate.assert_called_once()
+            # generate が呼び出されていることを確認
+            mock_ai_provider.generate.assert_called_once()
 
-        # 呼び出し引数のプロンプトを確認
-        call_args = mock_ai_provider.generate.call_args
-        prompt = call_args[0][0] if call_args[0] else call_args[1].get("prompt", "")
+            # 呼び出し引数のプロンプトを確認
+            call_args = mock_ai_provider.generate.call_args
+            prompt = call_args[0][0] if call_args[0] else call_args[1].get("prompt", "")
 
-        # 古いメッセージは含まれていないはず
-        assert "古いメッセージ" not in prompt
-        # 新しいメッセージは含まれているはず
-        assert "最近のメッセージ" in prompt
-        assert "今日のメッセージ" in prompt
+            # 古いメッセージは含まれていないはず
+            assert "古いメッセージ" not in prompt
+            # 新しいメッセージは含まれているはず
+            assert "最近のメッセージ" in prompt
+            assert "今日のメッセージ" in prompt
 
     # SUM-04: 正しいプロバイダーを使用
     @pytest.mark.asyncio
@@ -164,20 +166,17 @@ class TestSummarizer:
             "api_key": "test-key",
         }
 
-        with patch("src.ai.summarizer.OpenAIProvider", return_value=mock_ai_provider):
-            summarizer = Summarizer(mock_router)
+        summarizer = Summarizer(mock_router)
+        mock_get_provider = MagicMock(return_value=mock_ai_provider)
+        with patch.object(summarizer, "_get_provider", mock_get_provider):
             await summarizer.summarize(
                 sample_messages,
                 workspace_id="workspace_a",
                 room_id="room_123",
             )
 
-        # Routerが正しい引数で呼び出されたことを確認
-        mock_router.get_provider_info.assert_called_with(
-            "summary",
-            workspace_id="workspace_a",
-            room_id="room_123",
-        )
+        # _get_provider が正しい引数で呼ばれたことを確認
+        mock_get_provider.assert_called_once_with("workspace_a", "room_123")
 
     # SUM-05: AIエラーハンドリング
     @pytest.mark.asyncio
@@ -189,11 +188,9 @@ class TestSummarizer:
 
         mock_provider = MagicMock()
         mock_provider.generate = AsyncMock(side_effect=AIProviderError("API error"))
-        mock_router.get_provider_config.return_value = {"api_key": "test-key"}
 
-        with patch("src.ai.summarizer.OpenAIProvider", return_value=mock_provider):
-            summarizer = Summarizer(mock_router)
-
+        summarizer = Summarizer(mock_router)
+        with patch.object(summarizer, "_get_provider", return_value=mock_provider):
             with pytest.raises(SummaryError) as exc_info:
                 await summarizer.summarize(sample_messages)
 
@@ -219,7 +216,7 @@ class TestSummarizerPrompt:
         from src.ai.summarizer import Summarizer
 
         summarizer = Summarizer(mock_router)
-        now = datetime.now()
+        now = datetime.now(UTC)
         messages = [
             {"sender_name": "田中", "content": "テストメッセージ1", "timestamp": now},
             {"sender_name": "佐藤", "content": "テストメッセージ2", "timestamp": now},
@@ -238,7 +235,7 @@ class TestSummarizerPrompt:
 
         summarizer = Summarizer(mock_router)
         messages = [
-            {"sender_name": "A", "content": "Test", "timestamp": datetime.now()},
+            {"sender_name": "A", "content": "Test", "timestamp": datetime.now(UTC)},
         ]
 
         prompt = summarizer._build_prompt(messages)
