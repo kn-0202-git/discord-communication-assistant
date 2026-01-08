@@ -1,0 +1,87 @@
+# Codex Review
+
+## 専門家別の指摘
+
+- ソフトウェアエンジニア: 設定と実装の乖離（OpenAI固定）が拡張性を阻害。
+- Python開発者: naive/aware datetime比較がランタイム例外の原因。
+- コードレビュアー: 添付ファイル名の入力検証不足がパストラバーサルの懸念。
+- UI/UXデザイナー: /summary が落ちるとユーザー体験が悪化。
+- 化学系エンジニア: 要約の不安定さは実務運用に支障。
+- 教育者: 設定通りに動かない挙動が学習コストを増やす。
+- セキュリティエンジニア: パストラバーサルと無制限ダウンロードのリスク。
+- QAエンジニア: UTC aware timestamp を用いたテストが不足。
+- AIエンジニア: ルーティングの多プロバイダー運用が実装で封じられている。
+
+## 重要度順
+
+1. 高: /summary で naive/aware datetime 比較が発生し、実データ運用で TypeError の可能性。
+2. 中: 添付ファイル名の未検証によりパストラバーサルの恐れ。
+3. 中: summary が OpenAI 固定で、config.yaml のルーティング設定と不一致。
+4. 中: 添付ファイルをサイズ上限なしで read() しており、メモリ消費や DoS のリスク。
+
+## Open Questions
+
+- Discord 側で filename にパス区切り文字が入らない前提か？
+
+## Testing Gaps
+
+- UTC aware timestamp を用いた /summary 日付フィルタリングのテストが不足。
+
+## レビュー日
+
+- 2025-01-06
+
+## レビュー者
+
+- codex
+
+---
+
+## 対応結果
+
+### 対応日: 2025-01-08
+
+### 対応者: Claude Code (Opus 4.5)
+
+### 対応状況
+
+| # | 問題 | 優先度 | 状態 | 対応内容 |
+|---|------|--------|------|----------|
+| 1 | naive/aware datetime比較 | 高 | ✅ 完了 | `datetime.now(UTC)` に修正。デフォルトタイムスタンプも UTC aware 化 |
+| 2 | パストラバーサル | 中 | ✅ 完了 | `_sanitize_filename()` で `Path(filename).name` を使用しベース名のみ取得 |
+| 3 | OpenAI固定問題 | 中 | ✅ 完了 | `_PROVIDER_CLASSES` dict で Anthropic/Google/Groq 全プロバイダー対応 |
+| 4 | サイズ上限なし | 中 | ✅ 完了 | `MAX_ATTACHMENT_SIZE = 25MB` を追加。Discord無料プラン上限に準拠 |
+
+### Open Questions への回答
+
+**Q: Discord 側で filename にパス区切り文字が入らない前提か？**
+
+A: Discord API自体はファイル名をそのまま返すため、悪意あるファイル名が含まれる可能性を排除できない。`_sanitize_filename()` を追加し、明示的にベース名のみを抽出することで対策した。
+
+### Testing Gaps への対応
+
+- `tests/test_summarizer.py`: UTC aware datetime を使用するテストに修正済み
+- `tests/test_integration.py`: 同様に UTC aware datetime に統一
+
+### テスト結果
+
+```
+✅ 128 tests passed
+✅ pyright: 0 errors
+✅ ruff: All checks passed
+```
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|----------|----------|
+| src/ai/summarizer.py | UTC aware datetime、マルチプロバイダー対応 |
+| src/storage/local.py | パストラバーサル対策（_sanitize_filename） |
+| src/bot/handlers.py | サイズ上限追加（25MB） |
+| tests/test_summarizer.py | patch.object パターン、UTC aware datetime |
+| tests/test_integration.py | UTC aware datetime |
+
+### コミット
+
+- `9adacdb`: fix: address security and quality issues from Codex review
+- `09918f7`: docs: add Codex review completion record
