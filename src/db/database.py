@@ -3,6 +3,7 @@
 データベースへのCRUD操作を提供。
 """
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import create_engine, select
@@ -12,6 +13,7 @@ from src.db.models import (
     Attachment,
     Base,
     Message,
+    Reminder,
     Room,
     RoomLink,
     Workspace,
@@ -351,3 +353,150 @@ class Database:
         self.session.commit()
         self.session.refresh(attachment)
         return attachment
+
+    # Reminder operations
+
+    def create_reminder(
+        self,
+        workspace_id: int,
+        title: str,
+        due_date: datetime,
+        description: str | None = None,
+    ) -> Reminder:
+        """Create a reminder.
+
+        Args:
+            workspace_id: Workspace ID.
+            title: Reminder title.
+            due_date: Due date (aware datetime with UTC timezone).
+            description: Optional description.
+
+        Returns:
+            Created Reminder object.
+        """
+        reminder = Reminder(
+            workspace_id=workspace_id,
+            title=title,
+            due_date=due_date,
+            description=description,
+        )
+        self.session.add(reminder)
+        self.session.commit()
+        self.session.refresh(reminder)
+        return reminder
+
+    def get_reminders_by_workspace(
+        self,
+        workspace_id: int,
+        include_done: bool = True,
+    ) -> list[Reminder]:
+        """Get reminders by workspace.
+
+        Args:
+            workspace_id: Workspace ID.
+            include_done: Include completed/cancelled reminders.
+
+        Returns:
+            List of reminders.
+        """
+        stmt = select(Reminder).where(Reminder.workspace_id == workspace_id)
+        if not include_done:
+            stmt = stmt.where(Reminder.status == "pending")
+        stmt = stmt.order_by(Reminder.due_date)
+        return list(self.session.execute(stmt).scalars().all())
+
+    def get_pending_reminders(
+        self,
+        hours_ahead: int = 24,
+    ) -> list[Reminder]:
+        """Get pending reminders due within the specified hours.
+
+        Args:
+            hours_ahead: Number of hours ahead to check.
+
+        Returns:
+            List of pending reminders due soon.
+        """
+        now = datetime.now(UTC)
+        deadline = now + timedelta(hours=hours_ahead)
+
+        stmt = (
+            select(Reminder)
+            .where(Reminder.status == "pending")
+            .where(Reminder.notified.is_(False))
+            .where(Reminder.due_date <= deadline)
+            .order_by(Reminder.due_date)
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def get_reminder_by_id(self, reminder_id: int) -> Reminder | None:
+        """Get reminder by ID.
+
+        Args:
+            reminder_id: Reminder ID.
+
+        Returns:
+            Reminder object or None.
+        """
+        stmt = select(Reminder).where(Reminder.id == reminder_id)
+        return self.session.execute(stmt).scalar_one_or_none()
+
+    def update_reminder_status(
+        self,
+        reminder_id: int,
+        status: str,
+    ) -> Reminder:
+        """Update reminder status.
+
+        Args:
+            reminder_id: Reminder ID.
+            status: New status (pending / done / cancelled).
+
+        Returns:
+            Updated Reminder object.
+        """
+        reminder = self.get_reminder_by_id(reminder_id)
+        if reminder is None:
+            raise ValueError(f"Reminder with ID {reminder_id} not found")
+        reminder.status = status
+        self.session.commit()
+        self.session.refresh(reminder)
+        return reminder
+
+    def update_reminder_notified(
+        self,
+        reminder_id: int,
+        notified: bool,
+    ) -> Reminder:
+        """Update reminder notified flag.
+
+        Args:
+            reminder_id: Reminder ID.
+            notified: Whether the reminder has been notified.
+
+        Returns:
+            Updated Reminder object.
+        """
+        reminder = self.get_reminder_by_id(reminder_id)
+        if reminder is None:
+            raise ValueError(f"Reminder with ID {reminder_id} not found")
+        reminder.notified = notified
+        self.session.commit()
+        self.session.refresh(reminder)
+        return reminder
+
+    def delete_reminder(self, reminder_id: int) -> bool:
+        """Delete a reminder.
+
+        Args:
+            reminder_id: Reminder ID.
+
+        Returns:
+            True if deleted, False if not found.
+        """
+        reminder = self.get_reminder_by_id(reminder_id)
+        if reminder is None:
+            return False
+        self.session.delete(reminder)
+        self.session.commit()
+        return True
