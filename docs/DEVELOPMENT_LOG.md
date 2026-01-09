@@ -1683,4 +1683,130 @@ ruff: All checks passed
 
 ---
 
+## 2025-01-09: Issue #30-31 VoiceSession & /record コマンド実装
+
+### 目標
+
+通話録音機能の基盤実装（Issue #30: VoiceSessionテーブル、Issue #31: /record on/off）
+
+### 実施内容
+
+#### Issue #30: VoiceSessionテーブル（7テスト）
+
+1. `src/db/models.py` に VoiceSession モデル追加:
+   - `id`, `room_id`, `start_time`, `end_time`
+   - `file_path`, `transcription`, `participants`
+
+2. `src/db/database.py` に CRUD 操作追加:
+   - `create_voice_session`: セッション作成
+   - `get_voice_session_by_id`: IDで取得
+   - `get_voice_sessions_by_room`: Room別取得
+   - `get_active_voice_sessions`: 録音中セッション取得
+   - `update_voice_session_end`: 終了時刻とファイルパス更新
+   - `update_voice_session_transcription`: 文字起こし更新
+   - `delete_voice_session`: 削除
+
+3. テストケース: DB-16 ~ DB-22
+
+#### Issue #31: /record on/off コマンド（17テスト）
+
+1. `src/bot/voice_recorder.py` 新規作成:
+   - `VoiceRecorder` クラス: 録音セッション管理
+   - `VoiceRecorderError`: カスタム例外
+   - セッション状態管理（`_active_recordings`）
+   - 参加者追跡（`add_participant`, `remove_participant`）
+
+2. `src/bot/commands.py` に `/record` コマンド追加:
+   - `/record on`: 録音開始（ボイスチャンネル接続、VoiceSession作成）
+   - `/record off`: 録音停止（ファイル保存、セッション更新、切断）
+
+3. 依存関係更新:
+   - `discord.py[voice]>=2.3.0`（音声機能）
+   - `pynacl>=1.5.0`（音声暗号化）
+
+### 技術的なポイント
+
+#### 1. discord.py の音声録音について
+
+**課題**: 標準の discord.py には音声録音機能（`sinks` モジュール）がない
+
+**選択肢**:
+1. py-cord（discord.py フォーク）に移行
+2. ffmpeg + VoiceRecvClient を使用
+3. セッション管理のみ先行実装
+
+**決定**: 選択肢3を採用
+- 理由: py-cord への移行は破壊的、ffmpeg は追加依存関係が複雑
+- 現在はプレースホルダーWAVファイルを生成
+- 実際の音声キャプチャは Issue #32（Whisperプロバイダー）で対応
+
+#### 2. BotCommands への VoiceRecorder 注入
+
+```python
+# コンストラクタでオプショナル引数として受け取り
+def __init__(
+    self,
+    tree: app_commands.CommandTree,
+    db: "Database",
+    router: "AIRouter",
+    voice_recorder: "VoiceRecorder | None" = None,  # 追加
+) -> None:
+```
+
+- VoiceRecorder が None の場合は「利用できません」メッセージを表示
+- 後方互換性を維持
+
+#### 3. コマンドの選択肢（Choices）
+
+```python
+@app_commands.choices(
+    action=[
+        app_commands.Choice(name="on - 録音開始", value="on"),
+        app_commands.Choice(name="off - 録音停止", value="off"),
+    ]
+)
+```
+
+- ユーザーが選択式で操作できる
+- 入力ミスを防止
+
+#### 4. テストのモック構成
+
+```python
+@pytest.fixture
+def mock_voice_recorder(self):
+    recorder = MagicMock()
+    recorder.is_recording.return_value = False
+    recorder.start_recording = AsyncMock(return_value=1)
+    recorder.stop_recording = AsyncMock(return_value=Path("/test/recording.wav"))
+    return recorder
+```
+
+- VoiceRecorder 全体をモック
+- 非同期メソッドは `AsyncMock` を使用
+
+### テスト結果
+
+```
+180 passed, 12 warnings
+pyright: 0 errors
+ruff: All checks passed
+```
+
+### 学んだこと
+
+1. **discord.py の音声機能は限定的**: 標準版には録音機能がない（py-cord との違い）
+2. **段階的実装が有効**: 完全な機能を待たずに、セッション管理を先に実装
+3. **プレースホルダーの活用**: 実装が未完でもテスト可能な状態を維持
+4. **依存関係の互換性**: `discord.py[voice]` でオプショナル依存を追加
+5. **コマンド引数の設計**: `app_commands.choices` でユーザー入力を制限
+
+### 次のステップ
+
+- Issue #32: Whisperプロバイダー実装（音声→テキスト変換）
+- Issue #33: /transcribe コマンド実装
+- 実際の音声キャプチャ機能の検討（py-cord 移行 or ffmpeg 連携）
+
+---
+
 （今後の開発記録をここに追記）

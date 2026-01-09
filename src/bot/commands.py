@@ -6,6 +6,8 @@
     /summary [days] - 直近の会話を要約
     /search {keyword} - 過去メッセージ検索
     /remind {title} {date} [description] - リマインダー登録
+    /reminders - リマインダー一覧表示
+    /record {action} - 通話録音の開始/停止
 
 Example:
     >>> from discord import app_commands
@@ -24,6 +26,7 @@ from discord import app_commands
 
 if TYPE_CHECKING:
     from src.ai.router import AIRouter
+    from src.bot.voice_recorder import VoiceRecorder
     from src.db.database import Database
 
 
@@ -91,6 +94,7 @@ class BotCommands:
         _tree: CommandTree インスタンス
         _db: Database インスタンス
         _router: AIRouter インスタンス
+        _voice_recorder: VoiceRecorder インスタンス（オプション）
     """
 
     # 検索結果の最大表示件数
@@ -101,6 +105,7 @@ class BotCommands:
         tree: app_commands.CommandTree,
         db: "Database",
         router: "AIRouter",
+        voice_recorder: "VoiceRecorder | None" = None,
     ) -> None:
         """BotCommandsを初期化
 
@@ -108,10 +113,12 @@ class BotCommands:
             tree: discord.py CommandTree
             db: Database インスタンス
             router: AIRouter インスタンス
+            voice_recorder: VoiceRecorder インスタンス（オプション）
         """
         self._tree = tree
         self._db = db
         self._router = router
+        self._voice_recorder = voice_recorder
         self._register_commands()
 
     def _register_commands(self) -> None:
@@ -120,6 +127,7 @@ class BotCommands:
         self._register_search_command()
         self._register_remind_command()
         self._register_reminders_command()
+        self._register_record_command()
 
     def _register_summary_command(self) -> None:
         """/summary コマンドを登録"""
@@ -478,6 +486,177 @@ class BotCommands:
         except Exception as e:
             await interaction.followup.send(f"エラーが発生しました: {e}")
 
+    def _register_record_command(self) -> None:
+        """/record コマンドを登録"""
+
+        @self._tree.command(
+            name="record",
+            description="通話の録音を開始または停止します",
+        )
+        @app_commands.describe(action="on: 録音開始, off: 録音停止")
+        @app_commands.choices(
+            action=[
+                app_commands.Choice(name="on - 録音開始", value="on"),
+                app_commands.Choice(name="off - 録音停止", value="off"),
+            ]
+        )
+        async def record_command(
+            interaction: discord.Interaction,
+            action: app_commands.Choice[str],
+        ) -> None:
+            """通話録音を制御するコマンド"""
+            await self._handle_record(interaction, action.value)
+
+    async def _handle_record(
+        self,
+        interaction: discord.Interaction,
+        action: str,
+    ) -> None:
+        """/record コマンドのハンドラ
+
+        Args:
+            interaction: Discord Interaction
+            action: "on" または "off"
+        """
+        # 即座に応答
+        await interaction.response.defer(thinking=True)
+
+        try:
+            # VoiceRecorderが設定されていない場合
+            if self._voice_recorder is None:
+                await interaction.followup.send(
+                    "録音機能は現在利用できません。Bot管理者にお問い合わせください。"
+                )
+                return
+
+            guild = interaction.guild
+            user = interaction.user
+
+            if not guild:
+                await interaction.followup.send("このコマンドはサーバー内でのみ使用できます。")
+                return
+
+            # Workspaceを取得
+            workspace = self._db.get_workspace_by_discord_id(str(guild.id))
+            if not workspace:
+                await interaction.followup.send("このサーバーは登録されていません。")
+                return
+
+            if action == "on":
+                await self._handle_record_on(interaction, workspace, user)
+            else:
+                await self._handle_record_off(interaction)
+
+        except Exception as e:
+            await interaction.followup.send(f"エラーが発生しました: {e}")
+
+    async def _handle_record_on(
+        self,
+        interaction: discord.Interaction,
+        workspace: "Workspace",
+        user: discord.User | discord.Member,
+    ) -> None:
+        """録音開始の処理
+
+        Args:
+            interaction: Discord Interaction
+            workspace: Workspace オブジェクト
+            user: コマンド実行者
+        """
+        from src.bot.voice_recorder import VoiceRecorderError
+
+        guild = interaction.guild
+        assert guild is not None  # 呼び出し元でチェック済み
+        assert self._voice_recorder is not None  # 呼び出し元でチェック済み
+
+        # ユーザーがボイスチャンネルに接続しているか確認
+        if not isinstance(user, discord.Member) or user.voice is None:
+            await interaction.followup.send(
+                "ボイスチャンネルに接続してからこのコマンドを使用してください。"
+            )
+            return
+
+        voice_channel = user.voice.channel
+        if not isinstance(voice_channel, discord.VoiceChannel):
+            await interaction.followup.send("通常のボイスチャンネルでのみ録音できます。")
+            return
+
+        # 既に録音中か確認
+        if self._voice_recorder.is_recording(guild.id):
+            await interaction.followup.send(
+                "このサーバーでは既に録音中です。「/record off」で停止してください。"
+            )
+            return
+
+        # ボイスチャンネル用のRoomを取得または作成
+        room = self._db.get_room_by_discord_id(str(voice_channel.id))
+        if not room:
+            # Roomが存在しない場合は作成
+            room = self._db.create_room(
+                workspace_id=workspace.id,
+                name=voice_channel.name,
+                discord_channel_id=str(voice_channel.id),
+                room_type="voice",
+            )
+
+        # 通知先のテキストチャンネルを取得
+        notify_channel = None
+        if isinstance(interaction.channel, discord.TextChannel):
+            notify_channel = interaction.channel
+
+        # 録音開始
+        try:
+            session_id = await self._voice_recorder.start_recording(
+                voice_channel=voice_channel,
+                room_id=room.id,
+                workspace_id=workspace.id,
+                notify_channel=notify_channel,
+            )
+
+            await interaction.followup.send(
+                f"録音を開始しました。（セッションID: {session_id}）\n"
+                f"「/record off」で録音を停止できます。"
+            )
+
+        except VoiceRecorderError as e:
+            await interaction.followup.send(f"録音の開始に失敗しました: {e}")
+
+    async def _handle_record_off(
+        self,
+        interaction: discord.Interaction,
+    ) -> None:
+        """録音停止の処理
+
+        Args:
+            interaction: Discord Interaction
+        """
+        from src.bot.voice_recorder import VoiceRecorderError
+
+        guild = interaction.guild
+        assert guild is not None  # 呼び出し元でチェック済み
+        assert self._voice_recorder is not None  # 呼び出し元でチェック済み
+
+        # 録音中か確認
+        if not self._voice_recorder.is_recording(guild.id):
+            await interaction.followup.send("このサーバーでは録音していません。")
+            return
+
+        # 録音停止
+        try:
+            file_path = await self._voice_recorder.stop_recording(guild.id)
+
+            await interaction.followup.send(
+                f"録音を停止しました。\n" f"ファイル: `{file_path.name}`"
+            )
+
+        except VoiceRecorderError as e:
+            await interaction.followup.send(f"録音の停止に失敗しました: {e}")
+
+
+# Workspace型をインポート（循環参照回避のため遅延インポート）
+if TYPE_CHECKING:
+    from src.db.models import Workspace
+
 
 # 後方互換性のためのエイリアス
 SummaryCommands = BotCommands
@@ -487,6 +666,7 @@ async def setup_commands(
     client: discord.Client,
     db: "Database",
     router: "AIRouter",
+    voice_recorder: "VoiceRecorder | None" = None,
 ) -> app_commands.CommandTree:
     """コマンドをセットアップ
 
@@ -494,10 +674,11 @@ async def setup_commands(
         client: Discord Client
         db: Database インスタンス
         router: AIRouter インスタンス
+        voice_recorder: VoiceRecorder インスタンス（オプション）
 
     Returns:
         設定済みの CommandTree
     """
     tree = app_commands.CommandTree(client)
-    BotCommands(tree, db, router)
+    BotCommands(tree, db, router, voice_recorder)
     return tree
