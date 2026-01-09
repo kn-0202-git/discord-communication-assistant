@@ -8,6 +8,7 @@ Example:
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 from datetime import datetime
@@ -16,7 +17,7 @@ import discord
 
 from src.ai.router import AIRouter
 from src.db.database import Database
-from src.db.models import Message, Room
+from src.db.models import Message, Reminder, Room
 
 logger = logging.getLogger(__name__)
 
@@ -318,6 +319,164 @@ class AggregationNotifier:
         return keywords[:5]  # 最大5キーワード
 
 
+class ReminderNotifier:
+    """リマインダー通知を管理するクラス.
+
+    期限が近いリマインダーを統合Roomに自動通知します。
+
+    Attributes:
+        db: Databaseインスタンス
+        bot: Discord Botインスタンス
+        check_interval: チェック間隔（秒）
+    """
+
+    # デフォルトのチェック間隔（5分）
+    DEFAULT_CHECK_INTERVAL = 300
+
+    # 期限通知の先読み時間（24時間）
+    DEFAULT_HOURS_AHEAD = 24
+
+    def __init__(
+        self,
+        db: Database,
+        bot: discord.Client,
+        check_interval: int = DEFAULT_CHECK_INTERVAL,
+        hours_ahead: int = DEFAULT_HOURS_AHEAD,
+    ) -> None:
+        """ReminderNotifierを初期化.
+
+        Args:
+            db: Databaseインスタンス
+            bot: Discord Botインスタンス
+            check_interval: チェック間隔（秒）
+            hours_ahead: 期限通知の先読み時間（時間）
+        """
+        self.db = db
+        self.bot = bot
+        self.check_interval = check_interval
+        self.hours_ahead = hours_ahead
+        self._task: asyncio.Task | None = None
+
+    async def check_and_notify(self) -> int:
+        """期限が近いリマインダーをチェックして通知.
+
+        Returns:
+            通知したリマインダーの数
+        """
+        notified_count = 0
+
+        # 期限が近いリマインダーを取得
+        pending_reminders = self.db.get_pending_reminders(hours_ahead=self.hours_ahead)
+
+        if not pending_reminders:
+            logger.debug("No pending reminders to notify")
+            return notified_count
+
+        for reminder in pending_reminders:
+            try:
+                # Workspace内の統合Roomを取得
+                aggregation_rooms = self.db.get_aggregation_rooms(reminder.workspace_id)
+
+                if not aggregation_rooms:
+                    logger.debug(f"No aggregation rooms for workspace {reminder.workspace_id}")
+                    continue
+
+                # 各統合Roomに通知
+                for agg_room in aggregation_rooms:
+                    await self._send_reminder_notification(agg_room, reminder)
+
+                # 通知済みフラグを更新
+                self.db.update_reminder_notified(reminder.id, notified=True)
+                notified_count += 1
+                logger.info(f"Sent reminder notification for reminder {reminder.id}")
+
+            except Exception as e:
+                logger.error(f"Failed to notify reminder {reminder.id}: {e}")
+
+        return notified_count
+
+    async def _send_reminder_notification(
+        self,
+        aggregation_room: Room,
+        reminder: Reminder,
+    ) -> None:
+        """リマインダー通知を送信.
+
+        Args:
+            aggregation_room: 通知先の統合Room
+            reminder: 通知するリマインダー
+        """
+        channel_id = aggregation_room.discord_channel_id
+
+        # Discordチャンネルを取得
+        channel = self.bot.get_channel(int(channel_id))
+        if channel is None:
+            channel = await self.bot.fetch_channel(int(channel_id))
+
+        if not isinstance(channel, discord.TextChannel):
+            raise NotificationError(f"Channel {channel_id} is not a text channel")
+
+        # Embedを作成
+        embed = self._create_reminder_embed(reminder)
+
+        await channel.send(embed=embed)
+
+    def _create_reminder_embed(self, reminder: Reminder) -> discord.Embed:
+        """リマインダー通知用Embedを作成.
+
+        Args:
+            reminder: 通知するリマインダー
+
+        Returns:
+            Discord Embed
+        """
+        embed = discord.Embed(
+            title="⏰ リマインダー通知",
+            description=f"**{reminder.title}**",
+            color=discord.Color.orange(),
+            timestamp=datetime.now(),
+        )
+
+        due_str = reminder.due_date.strftime("%Y-%m-%d %H:%M")
+        embed.add_field(name="期限", value=due_str, inline=True)
+        embed.add_field(name="ステータス", value=reminder.status, inline=True)
+
+        if reminder.description:
+            embed.add_field(name="詳細", value=reminder.description, inline=False)
+
+        embed.set_footer(text=f"リマインダーID: {reminder.id}")
+
+        return embed
+
+    async def start(self) -> None:
+        """バックグラウンドタスクを開始."""
+        if self._task is not None:
+            logger.warning("ReminderNotifier is already running")
+            return
+
+        self._task = asyncio.create_task(self._background_loop())
+        logger.info("ReminderNotifier started")
+
+    async def stop(self) -> None:
+        """バックグラウンドタスクを停止."""
+        if self._task is not None:
+            self._task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._task
+            self._task = None
+            logger.info("ReminderNotifier stopped")
+
+    async def _background_loop(self) -> None:
+        """バックグラウンドループ."""
+        while True:
+            try:
+                await self.check_and_notify()
+            except Exception as e:
+                logger.error(f"Error in reminder notification loop: {e}")
+
+            await asyncio.sleep(self.check_interval)
+
+
 async def setup_notifier(
     db: Database,
     bot: discord.Client,
@@ -334,3 +493,28 @@ async def setup_notifier(
         セットアップされたAggregationNotifier
     """
     return AggregationNotifier(db=db, bot=bot, router=router)
+
+
+async def setup_reminder_notifier(
+    db: Database,
+    bot: discord.Client,
+    check_interval: int = ReminderNotifier.DEFAULT_CHECK_INTERVAL,
+    hours_ahead: int = ReminderNotifier.DEFAULT_HOURS_AHEAD,
+) -> ReminderNotifier:
+    """ReminderNotifierをセットアップ.
+
+    Args:
+        db: Databaseインスタンス
+        bot: Discord Botインスタンス
+        check_interval: チェック間隔（秒）
+        hours_ahead: 期限通知の先読み時間（時間）
+
+    Returns:
+        セットアップされたReminderNotifier
+    """
+    return ReminderNotifier(
+        db=db,
+        bot=bot,
+        check_interval=check_interval,
+        hours_ahead=hours_ahead,
+    )

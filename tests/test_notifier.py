@@ -431,3 +431,168 @@ class TestRateLimit:
 
         # 待機していないことを確認（0.1秒未満）
         assert elapsed < 0.1
+
+
+class TestReminderNotifier:
+    """ReminderNotifierのテスト"""
+
+    @pytest.fixture
+    def mock_db(self) -> MagicMock:
+        """Databaseモック"""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_bot(self) -> MagicMock:
+        """Discord Botモック"""
+        return MagicMock()
+
+    @pytest.fixture
+    def sample_workspace(self) -> MagicMock:
+        """サンプルWorkspace"""
+        from src.db.models import Workspace
+
+        workspace = MagicMock(spec=Workspace)
+        workspace.id = 1
+        workspace.name = "Test Workspace"
+        workspace.discord_server_id = "123456789"
+        return workspace
+
+    @pytest.fixture
+    def sample_reminder(self) -> MagicMock:
+        """サンプルReminder"""
+        from datetime import UTC, datetime, timedelta
+
+        from src.db.models import Reminder
+
+        reminder = MagicMock(spec=Reminder)
+        reminder.id = 1
+        reminder.workspace_id = 1
+        reminder.title = "納品確認"
+        reminder.description = "製品Xの納品日"
+        reminder.due_date = datetime.now(UTC) + timedelta(hours=1)
+        reminder.status = "pending"
+        reminder.notified = False
+        return reminder
+
+    @pytest.fixture
+    def sample_aggregation_room(self) -> Room:
+        """サンプル統合Room"""
+        room = MagicMock(spec=Room)
+        room.id = 2
+        room.workspace_id = 1
+        room.name = "Aggregation Room"
+        room.discord_channel_id = "987654321"
+        room.room_type = "aggregation"
+        return room
+
+    # RN-01: 期限が近いリマインダーを通知
+    @pytest.mark.asyncio
+    async def test_check_and_notify_sends_reminder(
+        self,
+        mock_db: MagicMock,
+        mock_bot: MagicMock,
+        sample_workspace: MagicMock,
+        sample_reminder: MagicMock,
+        sample_aggregation_room: Room,
+    ) -> None:
+        """期限が近いリマインダーを通知する"""
+        import discord
+
+        from src.bot.notifier import ReminderNotifier
+
+        # モック設定
+        mock_db.get_pending_reminders.return_value = [sample_reminder]
+        mock_db.get_aggregation_rooms.return_value = [sample_aggregation_room]
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.send = AsyncMock()
+        mock_bot.get_channel.return_value = mock_channel
+
+        notifier = ReminderNotifier(db=mock_db, bot=mock_bot)
+
+        # 実行
+        count = await notifier.check_and_notify()
+
+        # 検証
+        assert count == 1
+        mock_channel.send.assert_called_once()
+        mock_db.update_reminder_notified.assert_called_once_with(sample_reminder.id, notified=True)
+
+    # RN-02: 通知済みフラグが更新される
+    @pytest.mark.asyncio
+    async def test_check_and_notify_updates_notified_flag(
+        self,
+        mock_db: MagicMock,
+        mock_bot: MagicMock,
+        sample_reminder: MagicMock,
+        sample_aggregation_room: Room,
+    ) -> None:
+        """通知後にnotifiedフラグがTrueに更新される"""
+        import discord
+
+        from src.bot.notifier import ReminderNotifier
+
+        mock_db.get_pending_reminders.return_value = [sample_reminder]
+        mock_db.get_aggregation_rooms.return_value = [sample_aggregation_room]
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.send = AsyncMock()
+        mock_bot.get_channel.return_value = mock_channel
+
+        notifier = ReminderNotifier(db=mock_db, bot=mock_bot)
+        await notifier.check_and_notify()
+
+        mock_db.update_reminder_notified.assert_called_with(sample_reminder.id, notified=True)
+
+    # RN-03: 統合Roomがない場合はスキップ
+    @pytest.mark.asyncio
+    async def test_check_and_notify_no_aggregation_rooms(
+        self,
+        mock_db: MagicMock,
+        mock_bot: MagicMock,
+        sample_reminder: MagicMock,
+    ) -> None:
+        """統合Roomがない場合はスキップする"""
+        from src.bot.notifier import ReminderNotifier
+
+        mock_db.get_pending_reminders.return_value = [sample_reminder]
+        mock_db.get_aggregation_rooms.return_value = []
+
+        notifier = ReminderNotifier(db=mock_db, bot=mock_bot)
+        count = await notifier.check_and_notify()
+
+        assert count == 0
+        mock_db.update_reminder_notified.assert_not_called()
+
+    # RN-04: 期限が近いリマインダーがない場合
+    @pytest.mark.asyncio
+    async def test_check_and_notify_no_pending_reminders(
+        self,
+        mock_db: MagicMock,
+        mock_bot: MagicMock,
+    ) -> None:
+        """期限が近いリマインダーがない場合は何もしない"""
+        from src.bot.notifier import ReminderNotifier
+
+        mock_db.get_pending_reminders.return_value = []
+
+        notifier = ReminderNotifier(db=mock_db, bot=mock_bot)
+        count = await notifier.check_and_notify()
+
+        assert count == 0
+
+    # RN-05: Embed作成のテスト
+    def test_create_reminder_embed(
+        self,
+        mock_db: MagicMock,
+        mock_bot: MagicMock,
+        sample_reminder: MagicMock,
+    ) -> None:
+        """リマインダー通知用Embedが正しく作成される"""
+        from src.bot.notifier import ReminderNotifier
+
+        notifier = ReminderNotifier(db=mock_db, bot=mock_bot)
+        embed = notifier._create_reminder_embed(sample_reminder)
+
+        assert "リマインダー" in embed.title
+        assert sample_reminder.title in embed.description
