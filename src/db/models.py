@@ -70,6 +70,9 @@ class Room(Base):
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="rooms")
     messages: Mapped[list["Message"]] = relationship("Message", back_populates="room")
+    voice_sessions: Mapped[list["VoiceSession"]] = relationship(
+        "VoiceSession", back_populates="room"
+    )
 
     # Room links (as source)
     outgoing_links: Mapped[list["RoomLink"]] = relationship(
@@ -174,3 +177,23 @@ class Reminder(Base):
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="reminders")
+
+
+class VoiceSession(Base):
+    """VoiceSession（通話録音）.
+
+    通話録音セッションを管理。
+    """
+
+    __tablename__ = "voice_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    room_id: Mapped[int] = mapped_column(Integer, ForeignKey("rooms.id"), nullable=False)
+    start_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    file_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    transcription: Mapped[str | None] = mapped_column(Text, nullable=True)
+    participants: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+
+    # Relationships
+    room: Mapped["Room"] = relationship("Room", back_populates="voice_sessions")

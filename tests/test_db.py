@@ -511,3 +511,230 @@ class TestReminder:
         # 存在しないIDの削除はFalse
         result = db.delete_reminder(99999)
         assert result is False
+
+
+class TestVoiceSession:
+    """VoiceSession model tests."""
+
+    def test_create_voice_session(self, db: Database) -> None:
+        """DB-16: VoiceSession作成."""
+        from datetime import UTC, datetime
+
+        workspace = db.create_workspace(name="A社", discord_server_id="123")
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="通話チャンネル",
+            discord_channel_id="voice_123",
+            room_type="topic",
+        )
+
+        start_time = datetime.now(UTC)
+        session = db.create_voice_session(
+            room_id=room.id,
+            start_time=start_time,
+            participants=["user_1", "user_2"],
+        )
+
+        assert session.id is not None
+        assert session.room_id == room.id
+        assert session.start_time.replace(tzinfo=None) == start_time.replace(tzinfo=None)
+        assert session.end_time is None
+        assert session.file_path is None
+        assert session.transcription is None
+        assert session.participants == ["user_1", "user_2"]
+
+    def test_get_voice_session_by_id(self, db: Database) -> None:
+        """DB-17: IDでVoiceSession取得."""
+        from datetime import UTC, datetime
+
+        workspace = db.create_workspace(name="A社", discord_server_id="123")
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="通話チャンネル",
+            discord_channel_id="voice_123",
+            room_type="topic",
+        )
+
+        session = db.create_voice_session(
+            room_id=room.id,
+            start_time=datetime.now(UTC),
+            participants=["user_1"],
+        )
+
+        # 存在するIDで取得
+        found = db.get_voice_session_by_id(session.id)
+        assert found is not None
+        assert found.id == session.id
+
+        # 存在しないIDで取得
+        not_found = db.get_voice_session_by_id(99999)
+        assert not_found is None
+
+    def test_get_voice_sessions_by_room(self, db: Database) -> None:
+        """DB-18: Room別VoiceSession取得."""
+        from datetime import UTC, datetime, timedelta
+
+        workspace = db.create_workspace(name="A社", discord_server_id="123")
+        room1 = db.create_room(
+            workspace_id=workspace.id,
+            name="通話1",
+            discord_channel_id="voice_1",
+            room_type="topic",
+        )
+        room2 = db.create_room(
+            workspace_id=workspace.id,
+            name="通話2",
+            discord_channel_id="voice_2",
+            room_type="topic",
+        )
+
+        # Room1に2件作成
+        db.create_voice_session(
+            room_id=room1.id,
+            start_time=datetime.now(UTC),
+            participants=["user_1"],
+        )
+        db.create_voice_session(
+            room_id=room1.id,
+            start_time=datetime.now(UTC) + timedelta(hours=1),
+            participants=["user_2"],
+        )
+
+        # Room2に1件作成
+        db.create_voice_session(
+            room_id=room2.id,
+            start_time=datetime.now(UTC),
+            participants=["user_3"],
+        )
+
+        # Room1のセッションのみ取得
+        sessions = db.get_voice_sessions_by_room(room1.id)
+        assert len(sessions) == 2
+        assert all(s.room_id == room1.id for s in sessions)
+
+    def test_update_voice_session_end(self, db: Database) -> None:
+        """DB-19: VoiceSession終了更新."""
+        from datetime import UTC, datetime, timedelta
+
+        workspace = db.create_workspace(name="A社", discord_server_id="123")
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="通話チャンネル",
+            discord_channel_id="voice_123",
+            room_type="topic",
+        )
+
+        start_time = datetime.now(UTC)
+        session = db.create_voice_session(
+            room_id=room.id,
+            start_time=start_time,
+            participants=["user_1"],
+        )
+
+        assert session.end_time is None
+        assert session.file_path is None
+
+        # 終了時刻とファイルパスを更新
+        end_time = start_time + timedelta(hours=1)
+        file_path = "/data/voice/session_1.ogg"
+        updated = db.update_voice_session_end(
+            session_id=session.id,
+            end_time=end_time,
+            file_path=file_path,
+        )
+
+        assert updated.end_time.replace(tzinfo=None) == end_time.replace(tzinfo=None)
+        assert updated.file_path == file_path
+
+    def test_update_voice_session_transcription(self, db: Database) -> None:
+        """DB-20: VoiceSession文字起こし更新."""
+        from datetime import UTC, datetime
+
+        workspace = db.create_workspace(name="A社", discord_server_id="123")
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="通話チャンネル",
+            discord_channel_id="voice_123",
+            room_type="topic",
+        )
+
+        session = db.create_voice_session(
+            room_id=room.id,
+            start_time=datetime.now(UTC),
+            participants=["user_1"],
+        )
+
+        assert session.transcription is None
+
+        # 文字起こしを更新
+        transcription = "こんにちは、本日の議題は..."
+        updated = db.update_voice_session_transcription(session.id, transcription)
+
+        assert updated.transcription == transcription
+
+    def test_get_active_voice_sessions(self, db: Database) -> None:
+        """DB-21: 録音中のVoiceSession取得."""
+        from datetime import UTC, datetime, timedelta
+
+        workspace = db.create_workspace(name="A社", discord_server_id="123")
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="通話チャンネル",
+            discord_channel_id="voice_123",
+            room_type="topic",
+        )
+
+        # 録音中（end_time = None）
+        active_session = db.create_voice_session(
+            room_id=room.id,
+            start_time=datetime.now(UTC),
+            participants=["user_1"],
+        )
+
+        # 終了済み（end_time あり）
+        ended_session = db.create_voice_session(
+            room_id=room.id,
+            start_time=datetime.now(UTC) - timedelta(hours=2),
+            participants=["user_2"],
+        )
+        db.update_voice_session_end(
+            session_id=ended_session.id,
+            end_time=datetime.now(UTC) - timedelta(hours=1),
+            file_path="/data/voice/ended.ogg",
+        )
+
+        # 録音中のセッションのみ取得
+        active_sessions = db.get_active_voice_sessions(room.id)
+        assert len(active_sessions) == 1
+        assert active_sessions[0].id == active_session.id
+
+    def test_delete_voice_session(self, db: Database) -> None:
+        """DB-22: VoiceSession削除."""
+        from datetime import UTC, datetime
+
+        workspace = db.create_workspace(name="A社", discord_server_id="123")
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="通話チャンネル",
+            discord_channel_id="voice_123",
+            room_type="topic",
+        )
+
+        session = db.create_voice_session(
+            room_id=room.id,
+            start_time=datetime.now(UTC),
+            participants=["user_1"],
+        )
+        session_id = session.id
+
+        # 削除
+        result = db.delete_voice_session(session_id)
+        assert result is True
+
+        # 削除後は取得できない
+        found = db.get_voice_session_by_id(session_id)
+        assert found is None
+
+        # 存在しないIDの削除はFalse
+        result = db.delete_voice_session(99999)
+        assert result is False

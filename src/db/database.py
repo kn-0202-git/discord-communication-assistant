@@ -16,6 +16,7 @@ from src.db.models import (
     Reminder,
     Room,
     RoomLink,
+    VoiceSession,
     Workspace,
 )
 
@@ -498,5 +499,148 @@ class Database:
         if reminder is None:
             return False
         self.session.delete(reminder)
+        self.session.commit()
+        return True
+
+    # VoiceSession operations
+
+    def create_voice_session(
+        self,
+        room_id: int,
+        start_time: datetime,
+        participants: list[str] | None = None,
+    ) -> VoiceSession:
+        """Create a voice session.
+
+        Args:
+            room_id: Room ID.
+            start_time: Session start time (aware datetime with UTC timezone).
+            participants: List of participant user IDs.
+
+        Returns:
+            Created VoiceSession object.
+        """
+        session = VoiceSession(
+            room_id=room_id,
+            start_time=start_time,
+            participants=participants,
+        )
+        self.session.add(session)
+        self.session.commit()
+        self.session.refresh(session)
+        return session
+
+    def get_voice_session_by_id(self, session_id: int) -> VoiceSession | None:
+        """Get voice session by ID.
+
+        Args:
+            session_id: VoiceSession ID.
+
+        Returns:
+            VoiceSession object or None.
+        """
+        stmt = select(VoiceSession).where(VoiceSession.id == session_id)
+        return self.session.execute(stmt).scalar_one_or_none()
+
+    def get_voice_sessions_by_room(
+        self,
+        room_id: int,
+        limit: int | None = None,
+    ) -> list[VoiceSession]:
+        """Get voice sessions by room.
+
+        Args:
+            room_id: Room ID.
+            limit: Maximum number of sessions to return.
+
+        Returns:
+            List of voice sessions.
+        """
+        stmt = (
+            select(VoiceSession)
+            .where(VoiceSession.room_id == room_id)
+            .order_by(VoiceSession.start_time.desc())
+        )
+        if limit:
+            stmt = stmt.limit(limit)
+        return list(self.session.execute(stmt).scalars().all())
+
+    def get_active_voice_sessions(self, room_id: int) -> list[VoiceSession]:
+        """Get active (recording) voice sessions.
+
+        Args:
+            room_id: Room ID.
+
+        Returns:
+            List of active voice sessions (end_time is None).
+        """
+        stmt = (
+            select(VoiceSession)
+            .where(VoiceSession.room_id == room_id)
+            .where(VoiceSession.end_time.is_(None))
+            .order_by(VoiceSession.start_time.desc())
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def update_voice_session_end(
+        self,
+        session_id: int,
+        end_time: datetime,
+        file_path: str,
+    ) -> VoiceSession:
+        """Update voice session end time and file path.
+
+        Args:
+            session_id: VoiceSession ID.
+            end_time: Session end time.
+            file_path: Path to the recorded audio file.
+
+        Returns:
+            Updated VoiceSession object.
+        """
+        voice_session = self.get_voice_session_by_id(session_id)
+        if voice_session is None:
+            raise ValueError(f"VoiceSession with ID {session_id} not found")
+        voice_session.end_time = end_time
+        voice_session.file_path = file_path
+        self.session.commit()
+        self.session.refresh(voice_session)
+        return voice_session
+
+    def update_voice_session_transcription(
+        self,
+        session_id: int,
+        transcription: str,
+    ) -> VoiceSession:
+        """Update voice session transcription.
+
+        Args:
+            session_id: VoiceSession ID.
+            transcription: Transcription text.
+
+        Returns:
+            Updated VoiceSession object.
+        """
+        voice_session = self.get_voice_session_by_id(session_id)
+        if voice_session is None:
+            raise ValueError(f"VoiceSession with ID {session_id} not found")
+        voice_session.transcription = transcription
+        self.session.commit()
+        self.session.refresh(voice_session)
+        return voice_session
+
+    def delete_voice_session(self, session_id: int) -> bool:
+        """Delete a voice session.
+
+        Args:
+            session_id: VoiceSession ID.
+
+        Returns:
+            True if deleted, False if not found.
+        """
+        voice_session = self.get_voice_session_by_id(session_id)
+        if voice_session is None:
+            return False
+        self.session.delete(voice_session)
         self.session.commit()
         return True
