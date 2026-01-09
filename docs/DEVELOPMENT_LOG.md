@@ -1596,4 +1596,91 @@ with patch.object(summarizer, "_get_provider", return_value=mock_provider):
 
 ---
 
+## 2025-01-09: Phase 2 Step 2 リマインダー機能実装
+
+### 目標
+
+リマインダー機能の完全実装（Issue #18-21）
+
+### 実施内容
+
+#### Issue #18: ReminderテーブルCRUD（8テスト）
+
+1. `src/db/database.py` にReminder CRUD操作を追加:
+   - `create_reminder`: リマインダー作成
+   - `get_reminders_by_workspace`: Workspace内リマインダー一覧
+   - `get_pending_reminders`: 期限が近いリマインダー取得
+   - `get_reminder_by_id`: IDで取得
+   - `update_reminder_status`: ステータス更新（pending/done/cancelled）
+   - `update_reminder_notified`: 通知済みフラグ更新
+   - `delete_reminder`: 削除
+
+2. テストケース: DB-09 ~ DB-15
+
+#### Issue #19: /remindコマンド（11テスト）
+
+1. `src/bot/commands.py` に追加:
+   - `parse_due_date`: 日時パーサー
+     - 相対日時: 1d, 2h, 30m（日/時間/分）
+     - 絶対日時: 2025-01-15, 2025-01-15 14:30
+   - `/remind` コマンド: タイトル、期限、説明を受け取り登録
+
+2. テストケース: CMD-01 ~ CMD-10
+
+#### Issue #20: /remindersコマンド（4テスト）
+
+1. `/reminders` コマンド:
+   - 未完了リマインダーを一覧表示
+   - 期限順にソート
+   - 最大10件表示
+
+2. テストケース: CMD-11 ~ CMD-14
+
+#### Issue #21: 期限通知機能（5テスト）
+
+1. `src/bot/notifier.py` に `ReminderNotifier` クラス追加:
+   - `check_and_notify`: 期限が近いリマインダーをチェック
+   - 統合Roomに自動通知
+   - 通知済みフラグを更新
+   - バックグラウンドタスク（start/stop制御）
+
+2. テストケース: RN-01 ~ RN-05
+
+### テスト結果
+
+```
+156 passed, 12 warnings
+pyright: 0 errors
+ruff: All checks passed
+```
+
+### 技術的なポイント
+
+1. **日時パーサーの設計**:
+   - 正規表現で相対日時（`^(\d+)([dhm])$`）をパース
+   - `datetime.strptime` で絶対日時をパース
+   - UTC タイムゾーンを統一
+
+2. **CommandTree のモック**:
+   - `CommandTree(MagicMock(spec=discord.Client))` は `client.http` を参照するため失敗
+   - CommandTree 自体をモックして `_handle_*` メソッドを直接テスト
+
+3. **バックグラウンドタスクの制御**:
+   - `asyncio.create_task` でループを開始
+   - `contextlib.suppress` で `CancelledError` を抑制（ruff SIM105）
+
+### 学んだこと
+
+1. Discord スラッシュコマンドのテストは CommandTree をモックする
+2. 日時パーサーは相対と絶対の両方をサポートすると使いやすい
+3. SQLite はタイムゾーン情報を保存しないため、テストで注意が必要
+4. バックグラウンドタスクは start/stop で制御できる設計が良い
+5. ruff の推奨に従い `contextlib.suppress` を使う
+
+### 次のステップ
+
+- Phase 2 Step 3: 通話録音・文字起こし (#30-33)
+
+---
+
 （今後の開発記録をここに追記）
