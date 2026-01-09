@@ -187,3 +187,123 @@ class TestRemindCommand:
         mock_interaction.followup.send.assert_called_once()
         call_args = mock_interaction.followup.send.call_args
         assert "形式が正しくありません" in str(call_args)
+
+
+class TestRemindersCommand:
+    """/reminders コマンドのテスト"""
+
+    @pytest.fixture
+    def db(self):
+        """テスト用データベース"""
+        database = Database(":memory:")
+        database.create_tables()
+        yield database
+        database.close()
+
+    @pytest.fixture
+    def mock_interaction(self):
+        """モックInteraction"""
+        interaction = MagicMock(spec=discord.Interaction)
+        interaction.response = AsyncMock()
+        interaction.followup = AsyncMock()
+        interaction.guild = MagicMock(spec=discord.Guild)
+        interaction.guild.id = 123456789
+        return interaction
+
+    @pytest.fixture
+    def bot_commands(self, db):
+        """BotCommandsインスタンス"""
+        from src.bot.commands import BotCommands
+
+        mock_tree = MagicMock()
+        mock_router = MagicMock()
+        return BotCommands(mock_tree, db, mock_router)
+
+    @pytest.mark.asyncio
+    async def test_reminders_command_shows_list(
+        self, db: Database, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-11: /reminders でリマインダー一覧表示"""
+        # Workspaceを作成
+        workspace = db.create_workspace(name="テストサーバー", discord_server_id="123456789")
+
+        # リマインダーを作成
+        db.create_reminder(
+            workspace_id=workspace.id,
+            title="タスク1",
+            due_date=datetime.now(UTC) + timedelta(days=1),
+        )
+        db.create_reminder(
+            workspace_id=workspace.id,
+            title="タスク2",
+            due_date=datetime.now(UTC) + timedelta(days=2),
+        )
+
+        # /reminders を実行
+        await bot_commands._handle_reminders(mock_interaction)
+
+        # 成功メッセージが送信されたことを確認
+        mock_interaction.followup.send.assert_called_once()
+        call_kwargs = mock_interaction.followup.send.call_args.kwargs
+        assert "embed" in call_kwargs
+        embed = call_kwargs["embed"]
+        # リストが表示されていること
+        assert "2件" in embed.description
+
+    @pytest.mark.asyncio
+    async def test_reminders_command_empty_list(
+        self, db: Database, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-12: リマインダーがない場合"""
+        # Workspaceを作成（リマインダーなし）
+        db.create_workspace(name="テストサーバー", discord_server_id="123456789")
+
+        # /reminders を実行
+        await bot_commands._handle_reminders(mock_interaction)
+
+        # メッセージが送信されたことを確認
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "リマインダーがありません" in str(call_args)
+
+    @pytest.mark.asyncio
+    async def test_reminders_command_without_workspace(
+        self, db: Database, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-13: 未登録サーバーでの /reminders"""
+        # /reminders を実行（Workspaceなし）
+        await bot_commands._handle_reminders(mock_interaction)
+
+        # エラーメッセージが送信されたことを確認
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "登録されていません" in str(call_args)
+
+    @pytest.mark.asyncio
+    async def test_reminders_command_pending_only(
+        self, db: Database, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-14: 未完了リマインダーのみ表示"""
+        # Workspaceを作成
+        workspace = db.create_workspace(name="テストサーバー", discord_server_id="123456789")
+
+        # リマインダーを作成
+        db.create_reminder(
+            workspace_id=workspace.id,
+            title="未完了タスク",
+            due_date=datetime.now(UTC) + timedelta(days=1),
+        )
+        done_reminder = db.create_reminder(
+            workspace_id=workspace.id,
+            title="完了タスク",
+            due_date=datetime.now(UTC) + timedelta(days=2),
+        )
+        db.update_reminder_status(done_reminder.id, "done")
+
+        # /reminders を実行
+        await bot_commands._handle_reminders(mock_interaction)
+
+        # 未完了のみ表示
+        call_kwargs = mock_interaction.followup.send.call_args.kwargs
+        embed = call_kwargs["embed"]
+        assert "1件" in embed.description

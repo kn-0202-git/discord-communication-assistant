@@ -119,6 +119,7 @@ class BotCommands:
         self._register_summary_command()
         self._register_search_command()
         self._register_remind_command()
+        self._register_reminders_command()
 
     def _register_summary_command(self) -> None:
         """/summary コマンドを登録"""
@@ -170,6 +171,19 @@ class BotCommands:
         ) -> None:
             """リマインダーを登録するコマンド"""
             await self._handle_remind(interaction, title, date, description)
+
+    def _register_reminders_command(self) -> None:
+        """/reminders コマンドを登録"""
+
+        @self._tree.command(
+            name="reminders",
+            description="リマインダー一覧を表示します",
+        )
+        async def reminders_command(
+            interaction: discord.Interaction,
+        ) -> None:
+            """リマインダー一覧を表示するコマンド"""
+            await self._handle_reminders(interaction)
 
     async def _handle_summary(
         self,
@@ -389,6 +403,75 @@ class BotCommands:
             if description:
                 embed.add_field(name="説明", value=description, inline=False)
             embed.set_footer(text=f"リマインダーID: {reminder.id}")
+
+            await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            await interaction.followup.send(f"エラーが発生しました: {e}")
+
+    async def _handle_reminders(
+        self,
+        interaction: discord.Interaction,
+    ) -> None:
+        """/reminders コマンドのハンドラ
+
+        Args:
+            interaction: Discord Interaction
+        """
+        # 即座に応答
+        await interaction.response.defer(thinking=True)
+
+        try:
+            guild = interaction.guild
+
+            if not guild:
+                await interaction.followup.send("このコマンドはサーバー内でのみ使用できます。")
+                return
+
+            # Workspaceを取得
+            workspace = self._db.get_workspace_by_discord_id(str(guild.id))
+            if not workspace:
+                await interaction.followup.send("このサーバーは登録されていません。")
+                return
+
+            # リマインダー一覧を取得（未完了のみ）
+            reminders = self._db.get_reminders_by_workspace(
+                workspace.id,
+                include_done=False,
+            )
+
+            if not reminders:
+                await interaction.followup.send("リマインダーがありません。")
+                return
+
+            # 結果を送信
+            embed = discord.Embed(
+                title="リマインダー一覧",
+                description=f"{len(reminders)}件のリマインダーがあります",
+                color=discord.Color.blue(),
+                timestamp=datetime.now(UTC),
+            )
+
+            for reminder in reminders[:10]:  # 最大10件表示
+                due_str = reminder.due_date.strftime("%Y-%m-%d %H:%M")
+                status_emoji = "⏰" if reminder.status == "pending" else "✅"
+
+                value = f"期限: {due_str}"
+                if reminder.description:
+                    # 説明を短縮
+                    desc = reminder.description
+                    if len(desc) > 50:
+                        desc = desc[:50] + "..."
+                    value += f"\n{desc}"
+
+                embed.add_field(
+                    name=f"{status_emoji} {reminder.title}",
+                    value=value,
+                    inline=False,
+                )
+
+            if len(reminders) > 10:
+                embed.set_footer(text=f"他{len(reminders) - 10}件のリマインダーがあります")
 
             await interaction.followup.send(embed=embed)
 
