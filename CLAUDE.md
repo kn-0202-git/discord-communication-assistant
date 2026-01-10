@@ -229,12 +229,16 @@ mainにマージ
 3. **ユーザーに指摘される前に**: 自発的にこれらの作業を実施する
 4. **判断に迷う場合のみユーザーに確認**: 基本は自動で実行
 5. **コード変更がなくても記録は必須**: 議論・設計判断・リスク評価のみの場合も記録する
+6. **Issue開始時に空ファイル作成**: `touch docs/CONVERSATION_LOG_ISSUE{N}.md` で先に作成しておく（忘れ防止）
+7. **各Issue完了直後に記録**: 複数Issueをまとめて記録せず、1つ完了したらすぐ記録
+8. **セッション終了前チェック**: 「記録ファイルは全て作成・更新したか？」を最終確認
 
 ### 過去の失敗事例
 
 | 日付 | Issue | 失敗内容 | 原因 | 対策 |
 |------|-------|----------|------|------|
 | 2025-01-04 | #5 | 記録（DEVELOPMENT_LOG/CONVERSATION_LOG）を作成せずにコミット | 「コード変更なし=記録不要」と誤判断、TodoWriteを使わなかった | ルール5追加、TodoWrite必須化 |
+| 2025-01-06 | #15-17 | Issue完了後にCONVERSATION_LOGを作成忘れ、DEVELOPMENT_LOGも遅延 | 実装に集中しTodoに記録作成を含めなかった、セッション終了前の確認を怠った | ルール6-8追加、Issue開始時の空ファイル作成を義務化 |
 
 ### テンプレート: Issueのチェックリスト
 
@@ -242,16 +246,19 @@ mainにマージ
 
 ```
 1. ブランチ作成
-2. テスト作成
-3. 実装
-4. テスト実行・修正
-5. ruff/pyright チェック
-6. コミット・プッシュ
-7. 📝 DEVELOPMENT_LOG.md 更新 ← 必須
-8. 📝 CONVERSATION_LOG_ISSUE{N}.md 作成 ← 必須
-9. 📝 DEVELOPMENT_PLAN.md / ISSUES_STATUS.md 更新 ← 必須
-10. mainにマージ
+2. 📝 空のCONVERSATION_LOG_ISSUE{N}.md を先に作成 ← 【新規】忘れ防止
+3. テスト作成
+4. 実装
+5. テスト実行・修正
+6. ruff/pyright チェック
+7. コミット・プッシュ
+8. 📝 DEVELOPMENT_LOG.md 更新 ← 必須（Issue完了直後に！）
+9. 📝 CONVERSATION_LOG_ISSUE{N}.md 記入 ← 必須（Issue完了直後に！）
+10. 📝 DEVELOPMENT_PLAN.md / ISSUES_STATUS.md 更新 ← 必須
+11. mainにマージ
 ```
+
+**重要**: ステップ8-10は「マージ前」に必ず実施。後回しにしない。
 
 ## 専門家視点
 
