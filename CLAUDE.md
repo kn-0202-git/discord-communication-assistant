@@ -119,7 +119,7 @@ uv run python -m src.main
 | 実装方法を知りたい | docs/ARCHITECTURE.md |
 | テスト方法を知りたい | docs/TEST_PLAN.md |
 | 残課題を確認したい | docs/ISSUES_STATUS.md |
-| 開発の経緯を知りたい | docs/DEVELOPMENT_LOG.md |
+| 開発の経緯を知りたい | docs/DEVELOPMENT_LOG.md（Phase 2まで）、docs/DEVELOPMENT_LOG_PHASE{N}.md（Phase 3以降） |
 | 詳細な会話を確認したい | docs/CONVERSATION_LOG_*.md |
 
 ### ファイル更新タイミング
@@ -134,7 +134,7 @@ uv run python -m src.main
 | TEST_PLAN.md | テストケースを追加した時 |
 | DEVELOPMENT_PLAN.md | スケジュール・Issueが変わった時 |
 | ISSUES_STATUS.md | 課題を発見・対応した時 |
-| DEVELOPMENT_LOG.md | Issue完了時（試行錯誤・技術解説を記録） |
+| DEVELOPMENT_LOG.md / DEVELOPMENT_LOG_PHASE{N}.md | Issue完了時（試行錯誤・技術解説を記録）。Phase 2まではDEVELOPMENT_LOG.md、Phase 3以降はDEVELOPMENT_LOG_PHASE3.md等に記録 |
 | CONVERSATION_LOG_*.md | Issue完了時（詳細な会話を記録） |
 
 ### 問題解決フロー
@@ -190,7 +190,9 @@ mainにマージ
 **Claude Codeへの指示: Issue完了時は以下を必ず実行してください。ユーザーに指摘される前に自発的に実施すること。**
 
 #### ステップ1: 開発記録を残す（必須）
-- [ ] `docs/DEVELOPMENT_LOG.md` に今回のIssueの記録を追記
+- [ ] 開発記録ファイルに今回のIssueの記録を追記
+  - **Phase 2まで**: `docs/DEVELOPMENT_LOG.md`
+  - **Phase 3以降**: `docs/DEVELOPMENT_LOG_PHASE3.md`（新規Phaseごとにファイル作成）
 - [ ] 含めるべき内容:
   - 開始時刻、目標
   - Step-by-Stepの実施内容（コマンド、結果、解説）
@@ -205,6 +207,12 @@ mainにマージ
   - ユーザーとClaudeの会話を時系列で記録
   - 実装の流れと技術的なポイント
   - まとめ（実装の流れ、技術的なポイント、学んだこと、今後の改善）
+- [ ] 会話ログの運用ルール:
+  - 先頭に「要約」セクションを置く（結論を先に）
+  - 「要約 + 詳細」の二層構成にする
+  - 作成日/作成時点（後追い作成含む）を明記
+  - 統合Issueは1ファイルあたり最大3〜4件を目安にする
+  - 統合Issueの冒頭にクイックインデックスを付ける
 
 #### ステップ3: 状態ファイルを更新（必須）
 - [ ] `docs/DEVELOPMENT_PLAN.md`: Issueの状態を「未着手」→「✅完了」に変更
@@ -233,6 +241,13 @@ mainにマージ
 7. **各Issue完了直後に記録**: 複数Issueをまとめて記録せず、1つ完了したらすぐ記録
 8. **セッション終了前チェック**: 「記録ファイルは全て作成・更新したか？」を最終確認
 
+### トークン節約ガイド
+
+- 参照文書の固定セットを優先: CLAUDE.md / docs/DEVELOPMENT_PLAN.md / docs/ISSUES_STATUS.md
+- 出力は原則5〜7項目以内に制限（詳細は要求時のみ拡張）
+- 変更は差分だけ記載（全文再掲を避ける）
+- テスト結果は合格件数のみ記載（失敗時のみ詳細）
+
 ### 過去の失敗事例
 
 | 日付 | Issue | 失敗内容 | 原因 | 対策 |
@@ -252,7 +267,7 @@ mainにマージ
 5. テスト実行・修正
 6. ruff/pyright チェック
 7. コミット・プッシュ
-8. 📝 DEVELOPMENT_LOG.md 更新 ← 必須（Issue完了直後に！）
+8. 📝 開発記録ファイル更新（Phase 2: DEVELOPMENT_LOG.md / Phase 3以降: DEVELOPMENT_LOG_PHASE{N}.md） ← 必須（Issue完了直後に！）
 9. 📝 CONVERSATION_LOG_ISSUE{N}.md 記入 ← 必須（Issue完了直後に！）
 10. 📝 DEVELOPMENT_PLAN.md / ISSUES_STATUS.md 更新 ← 必須
 11. mainにマージ
