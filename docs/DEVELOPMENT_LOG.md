@@ -1857,3 +1857,135 @@ ruff: All checks passed
 
 - 実装内容の事実は概ね正確。
 - 記録作成やドキュメント更新の実施タイミングが曖昧な箇所が複数あり、プロセス面の信頼性は中程度。
+
+---
+
+## 2026-01-11: Issue #32 Whisperプロバイダー実装
+
+### 目標
+
+OpenAI Whisper APIを使用した音声文字起こし機能（TranscriptionProvider基底クラスとWhisperProvider実装）を実装する。
+
+### 実施内容
+
+#### Step 1: ブランチ作成
+- **コマンド**: `git checkout -b feature/issue-32`
+- **結果**: ✅ 成功
+
+#### Step 2: 設計方針の決定
+- **判断**: AIProviderとは独立したTranscriptionProvider基底クラスを新規作成
+- **理由**:
+  - 既存のAIProviderは`generate(prompt: str)`と`embed(text: str)`用
+  - 文字起こしは`transcribe(audio: bytes)`で音声バイナリを入力
+  - 入力の型が根本的に異なるため、別の抽象化が適切
+
+#### Step 3: ディレクトリ構成
+```
+src/ai/transcription/
+├── __init__.py        # エクスポート
+├── base.py            # TranscriptionProvider 基底クラス
+└── whisper.py         # WhisperProvider 実装
+```
+
+#### Step 4: TranscriptionProvider基底クラス作成
+- **ファイル**: `src/ai/transcription/base.py`
+- **内容**:
+  - 抽象プロパティ: `name`, `model`
+  - 抽象メソッド: `transcribe(audio: bytes, language: str | None, **kwargs) -> str`
+  - 既存のAIProviderErrorクラス階層を再利用
+
+#### Step 5: WhisperProvider実装
+- **ファイル**: `src/ai/transcription/whisper.py`
+- **内容**:
+  - OpenAI AsyncOpenAIクライアントを使用
+  - `audio.transcriptions.create()` APIをラップ
+  - 対応フォーマット: WAV, MP3, M4A, WebM等
+  - オプション: language, prompt, temperature, response_format
+
+#### Step 6: テスト作成・実行
+- **ファイル**: `tests/test_whisper_provider.py`
+- **テストケース**: 11件
+  | ID | テスト | 説明 |
+  |----|--------|------|
+  | WHP-01 | test_transcribe_success | 正常な文字起こし |
+  | WHP-02 | test_transcribe_with_language | 言語指定付き |
+  | WHP-03 | test_connection_error | 接続エラー処理 |
+  | WHP-04 | test_quota_exceeded | レート制限エラー |
+  | WHP-05 | test_invalid_api_key | 認証エラー |
+  | WHP-06 | test_empty_audio | 空の音声データ |
+  | WHP-07 | test_name_property | プロバイダー名 |
+  | WHP-08 | test_model_property | モデル名 |
+  | WHP-09 | test_repr | __repr__動作確認 |
+  | WHP-10 | test_transcribe_with_options | オプション付き |
+  | WHP-11 | test_transcribe_json_format | JSON形式出力 |
+
+- **結果**: ✅ 11 passed
+
+#### Step 7: 品質チェック
+- **ruff**: ✅ All checks passed
+- **全テスト**: ✅ 191 passed
+
+### 技術解説
+
+#### TranscriptionProviderの設計
+
+```python
+class TranscriptionProvider(ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
+
+    @property
+    @abstractmethod
+    def model(self) -> str: ...
+
+    @abstractmethod
+    async def transcribe(
+        self,
+        audio: bytes,
+        language: str | None = None,
+        **kwargs: Any,
+    ) -> str: ...
+```
+
+**なぜAIProviderと分離したか:**
+1. 入力の型が異なる（str vs bytes）
+2. 責務が異なる（テキスト生成 vs 音声認識）
+3. 単一責任原則（SRP）に従う
+
+#### OpenAI Whisper API
+
+```python
+# 使用例
+response = await client.audio.transcriptions.create(
+    model="whisper-1",
+    file=audio_file,
+    language="ja",      # 言語指定（自動検出も可）
+    prompt="会議の議事録",  # ヒント
+    response_format="text",  # text, json, srt, vtt
+)
+```
+
+**対応形式**: mp3, mp4, mpeg, mpga, m4a, wav, webm
+
+### 学んだこと
+
+1. **抽象化の境界**: 入力/出力の型が異なる場合は別の基底クラスを作る
+2. **BytesIOの活用**: バイナリデータをファイルライクオブジェクトに変換
+3. **既存コードの再利用**: エラークラス（AIProviderError等）は共通で使用可能
+4. **テストパターン**: AsyncMockで非同期APIをモック化
+
+### 作成ファイル
+
+| ファイル | 行数 | 内容 |
+|----------|------|------|
+| src/ai/transcription/__init__.py | 13 | エクスポート |
+| src/ai/transcription/base.py | 99 | 基底クラス |
+| src/ai/transcription/whisper.py | 150 | Whisper実装 |
+| tests/test_whisper_provider.py | 215 | テスト |
+
+### 次のステップ
+
+- Issue #33: /transcribe コマンド実装
+  - 録音ファイルの文字起こし
+  - VoiceSession.transcription への保存

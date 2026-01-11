@@ -201,7 +201,7 @@ VISION.mdで定義した最終ゴールと、各Phaseでの対応状況:
 |-------|--------|----------|------|
 | #30 | VoiceSession実装 | テーブル・CRUD完了 | ✅完了 |
 | #31 | 通話録音機能 | /record on/off実装 | ✅完了 |
-| #32 | Whisperプロバイダー | 文字起こしAPI連携 | 未着手 |
+| #32 | Whisperプロバイダー | 文字起こしAPI連携 | ✅完了 |
 | #33 | /transcribe実装 | 文字起こし結果表示 | 未着手 |
 
 ### Step 4: Google Drive連携
