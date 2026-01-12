@@ -8,6 +8,7 @@
     /remind {title} {date} [description] - リマインダー登録
     /reminders - リマインダー一覧表示
     /record {action} - 通話録音の開始/停止
+    /transcribe {session_id} - 録音セッションを文字起こし
 
 Example:
     >>> from discord import app_commands
@@ -17,12 +18,16 @@ Example:
     >>> commands = BotCommands(tree, db, router)
 """
 
+import os
 import re
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands
+
+from src.ai.transcription.whisper import WhisperProvider
 
 if TYPE_CHECKING:
     from src.ai.router import AIRouter
@@ -128,6 +133,7 @@ class BotCommands:
         self._register_remind_command()
         self._register_reminders_command()
         self._register_record_command()
+        self._register_transcribe_command()
 
     def _register_summary_command(self) -> None:
         """/summary コマンドを登録"""
@@ -651,6 +657,103 @@ class BotCommands:
 
         except VoiceRecorderError as e:
             await interaction.followup.send(f"録音の停止に失敗しました: {e}")
+
+    def _register_transcribe_command(self) -> None:
+        """/transcribe コマンドを登録"""
+
+        @self._tree.command(
+            name="transcribe",
+            description="録音セッションを文字起こしします",
+        )
+        @app_commands.describe(session_id="録音セッションID")
+        async def transcribe_command(
+            interaction: discord.Interaction,
+            session_id: int,
+        ) -> None:
+            """録音を文字起こしするコマンド"""
+            await self._handle_transcribe(interaction, session_id)
+
+    async def _handle_transcribe(
+        self,
+        interaction: discord.Interaction,
+        session_id: int,
+    ) -> None:
+        """/transcribe コマンドのハンドラ
+
+        Args:
+            interaction: Discord Interaction
+            session_id: VoiceSession ID
+        """
+        # 即座に応答（処理中であることを通知）
+        await interaction.response.defer(thinking=True)
+
+        try:
+            guild = interaction.guild
+
+            if not guild:
+                await interaction.followup.send("このコマンドはサーバー内でのみ使用できます。")
+                return
+
+            # Workspaceを取得
+            workspace = self._db.get_workspace_by_discord_id(str(guild.id))
+            if not workspace:
+                await interaction.followup.send("このサーバーは登録されていません。")
+                return
+
+            # VoiceSessionを取得
+            session = self._db.get_voice_session_by_id(session_id)
+            if not session:
+                await interaction.followup.send(f"セッションID {session_id} が見つかりません。")
+                return
+
+            # 音声ファイルの存在確認
+            if not session.file_path:
+                await interaction.followup.send(
+                    "このセッションには音声ファイルがありません。"
+                    "録音が完了しているか確認してください。"
+                )
+                return
+
+            audio_path = Path(session.file_path)
+            if not audio_path.exists():
+                await interaction.followup.send(f"音声ファイルが見つかりません: {audio_path.name}")
+                return
+
+            # 音声ファイルを読み込み
+            audio_bytes = audio_path.read_bytes()
+
+            # APIキーの確認
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                await interaction.followup.send(
+                    "文字起こし機能が設定されていません。Bot管理者にお問い合わせください。"
+                )
+                return
+
+            # WhisperProviderで文字起こし
+            provider = WhisperProvider(api_key=api_key, model="whisper-1")
+            transcription = await provider.transcribe(audio_bytes, language="ja")
+
+            # DBに保存
+            self._db.update_voice_session_transcription(session_id, transcription)
+
+            # 結果を送信（Discord Embedの制限は2048文字）
+            description = transcription
+            if len(description) > 2000:
+                description = description[:2000] + "...\n(結果が長いため省略されました)"
+
+            embed = discord.Embed(
+                title="文字起こし完了",
+                description=description,
+                color=discord.Color.blue(),
+                timestamp=datetime.now(UTC),
+            )
+            embed.set_footer(text=f"セッションID: {session_id}")
+
+            await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            await interaction.followup.send(f"エラーが発生しました: {e}")
 
 
 # Workspace型をインポート（循環参照回避のため遅延インポート）

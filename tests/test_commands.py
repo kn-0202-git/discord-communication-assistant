@@ -307,3 +307,153 @@ class TestRemindersCommand:
         call_kwargs = mock_interaction.followup.send.call_args.kwargs
         embed = call_kwargs["embed"]
         assert "1件" in embed.description
+
+
+class TestTranscribeCommand:
+    """/transcribe コマンドのテスト
+
+    CMD-15 ~ CMD-18
+    """
+
+    @pytest.fixture
+    def db(self):
+        """テスト用データベース"""
+        database = Database(":memory:")
+        database.create_tables()
+        yield database
+        database.close()
+
+    @pytest.fixture
+    def mock_interaction(self):
+        """モックInteraction"""
+        interaction = MagicMock(spec=discord.Interaction)
+        interaction.response = AsyncMock()
+        interaction.followup = AsyncMock()
+        interaction.guild = MagicMock(spec=discord.Guild)
+        interaction.guild.id = 123456789
+        return interaction
+
+    @pytest.fixture
+    def bot_commands(self, db):
+        """BotCommandsインスタンス"""
+        from src.bot.commands import BotCommands
+
+        mock_tree = MagicMock()
+        mock_router = MagicMock()
+        return BotCommands(mock_tree, db, mock_router)
+
+    @pytest.fixture
+    def temp_audio_file(self, tmp_path):
+        """テスト用音声ファイル"""
+        audio_file = tmp_path / "test_audio.wav"
+        audio_file.write_bytes(b"fake audio data")
+        return audio_file
+
+    @pytest.mark.asyncio
+    async def test_transcribe_command_success(
+        self, db: Database, mock_interaction, bot_commands, temp_audio_file, monkeypatch
+    ) -> None:
+        """CMD-15: /transcribe で文字起こし成功"""
+        from unittest.mock import patch
+
+        # Workspaceとセッションを作成
+        workspace = db.create_workspace(name="テストサーバー", discord_server_id="123456789")
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="ボイスチャンネル",
+            discord_channel_id="111222333",
+            room_type="voice",
+        )
+        session = db.create_voice_session(
+            room_id=room.id,
+            start_time=datetime.now(UTC),
+            participants=["user1"],
+        )
+        # ファイルパスを設定
+        db.update_voice_session_end(
+            session.id,
+            end_time=datetime.now(UTC),
+            file_path=str(temp_audio_file),
+        )
+
+        # 環境変数を設定
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+        # WhisperProviderをモック
+        mock_provider = AsyncMock()
+        mock_provider.transcribe = AsyncMock(return_value="テスト文字起こし結果")
+
+        with patch("src.bot.commands.WhisperProvider", return_value=mock_provider):
+            # /transcribe を実行
+            await bot_commands._handle_transcribe(mock_interaction, session.id)
+
+        # 文字起こし結果がDBに保存されたことを確認
+        updated_session = db.get_voice_session_by_id(session.id)
+        assert updated_session is not None
+        assert updated_session.transcription == "テスト文字起こし結果"
+
+        # 成功メッセージが送信されたことを確認
+        mock_interaction.followup.send.assert_called_once()
+        call_kwargs = mock_interaction.followup.send.call_args.kwargs
+        assert "embed" in call_kwargs
+        embed = call_kwargs["embed"]
+        assert "文字起こし" in embed.title
+
+    @pytest.mark.asyncio
+    async def test_transcribe_command_session_not_found(
+        self, db: Database, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-16: 存在しないセッションIDでの /transcribe"""
+        # Workspaceを作成
+        db.create_workspace(name="テストサーバー", discord_server_id="123456789")
+
+        # 存在しないセッションIDで /transcribe を実行
+        await bot_commands._handle_transcribe(mock_interaction, 99999)
+
+        # エラーメッセージが送信されたことを確認
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "セッション" in str(call_args) and "見つかりません" in str(call_args)
+
+    @pytest.mark.asyncio
+    async def test_transcribe_command_no_audio_file(
+        self, db: Database, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-17: 音声ファイルがないセッションでの /transcribe"""
+        # Workspaceとセッションを作成（file_pathなし）
+        workspace = db.create_workspace(name="テストサーバー", discord_server_id="123456789")
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="ボイスチャンネル",
+            discord_channel_id="111222333",
+            room_type="voice",
+        )
+        session = db.create_voice_session(
+            room_id=room.id,
+            start_time=datetime.now(UTC),
+            participants=["user1"],
+        )
+
+        # /transcribe を実行
+        await bot_commands._handle_transcribe(mock_interaction, session.id)
+
+        # エラーメッセージが送信されたことを確認
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "音声ファイル" in str(call_args)
+
+    @pytest.mark.asyncio
+    async def test_transcribe_command_outside_guild(
+        self, db: Database, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-18: サーバー外（DM等）での /transcribe"""
+        # guildをNoneに設定
+        mock_interaction.guild = None
+
+        # /transcribe を実行
+        await bot_commands._handle_transcribe(mock_interaction, 1)
+
+        # エラーメッセージが送信されたことを確認
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "サーバー内" in str(call_args)
