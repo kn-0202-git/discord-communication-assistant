@@ -112,6 +112,7 @@ uv run python -m src.main
 
 | 状況 | 参照するファイル |
 |------|------------------|
+| 開発の概要・進捗を確認したい | docs/DEVELOPMENT_SUMMARY.md（推奨：まずここから） |
 | エラー・問題が起きた | docs/TROUBLESHOOTING.md |
 | 設計の理由を知りたい | docs/DECISIONS.md |
 | 過去の議論を確認したい | docs/DISCUSSION_SUMMARY.md |
@@ -119,8 +120,9 @@ uv run python -m src.main
 | 実装方法を知りたい | docs/ARCHITECTURE.md |
 | テスト方法を知りたい | docs/TEST_PLAN.md |
 | 残課題を確認したい | docs/ISSUES_STATUS.md |
-| 開発の経緯を知りたい | docs/DEVELOPMENT_LOG.md（Phase 2まで）、docs/DEVELOPMENT_LOG_PHASE{N}.md（Phase 3以降） |
+| 開発の経緯を知りたい（詳細） | docs/DEVELOPMENT_LOG.md（Phase 3）、docs/DEVELOPMENT_LOG_PHASE{N}.md（アーカイブ） |
 | 詳細な会話を確認したい | docs/CONVERSATION_LOG_*.md |
+| 引き継ぎが必要/前回から継続する | docs/HANDOVER_*.md（最新） |
 
 ### ファイル更新タイミング
 
@@ -134,7 +136,8 @@ uv run python -m src.main
 | TEST_PLAN.md | テストケースを追加した時 |
 | DEVELOPMENT_PLAN.md | スケジュール・Issueが変わった時 |
 | ISSUES_STATUS.md | 課題を発見・対応した時 |
-| DEVELOPMENT_LOG.md / DEVELOPMENT_LOG_PHASE{N}.md | Issue完了時（試行錯誤・技術解説を記録）。Phase 2まではDEVELOPMENT_LOG.md、Phase 3以降はDEVELOPMENT_LOG_PHASE3.md等に記録 |
+| DEVELOPMENT_LOG.md | Issue完了時（試行錯誤・技術解説を記録）。現在はPhase 3以降を記録。アーカイブは DEVELOPMENT_LOG_PHASE{N}.md |
+| DEVELOPMENT_SUMMARY.md | テスト数変更時、Phase完了時（要約を更新） |
 | CONVERSATION_LOG_*.md | Issue完了時（詳細な会話を記録） |
 
 ### 問題解決フロー
@@ -239,11 +242,29 @@ mainにマージ
 5. **コード変更がなくても記録は必須**: 議論・設計判断・リスク評価のみの場合も記録する
 6. **Issue開始時に空ファイル作成**: `touch docs/CONVERSATION_LOG_ISSUE{N}.md` で先に作成しておく（忘れ防止）
 7. **各Issue完了直後に記録**: 複数Issueをまとめて記録せず、1つ完了したらすぐ記録
-8. **セッション終了前チェック**: 「記録ファイルは全て作成・更新したか？」を最終確認
+8. **セッション終了前チェック**: 記録更新/引き継ぎカプセル/機密情報の混入なしを最終確認
+
+## 引き継ぎカプセル運用
+
+LLMのセッション切替があっても再開できるよう、開始/中間/終了で更新する。
+
+### 更新タイミング
+- 開始: 作業開始時に最低限を記入
+- 中間: 判断/設計が固まった時点で追記
+- 終了: 作業停止/引き継ぎ直前に更新
+
+### 必須項目（最小セット）
+- Issue番号 / 目的 / 進捗
+- Claude最終状態（どこまでやったか・止まった理由）
+- 決定事項（1行）
+- 次にやること（最大3つ）
+- 変更ファイル（差分）
+- テスト結果（実行有無 + 合格件数）
+- ブロッカー / 依存関係
 
 ### トークン節約ガイド
 
-- 参照文書の固定セットを優先: CLAUDE.md / docs/DEVELOPMENT_PLAN.md / docs/ISSUES_STATUS.md
+- 参照文書の固定セットを優先: CLAUDE.md / docs/DEVELOPMENT_PLAN.md / docs/ISSUES_STATUS.md / docs/HANDOVER_*.md（最新）
 - 出力は原則5〜7項目以内に制限（詳細は要求時のみ拡張）
 - 変更は差分だけ記載（全文再掲を避ける）
 - テスト結果は合格件数のみ記載（失敗時のみ詳細）
