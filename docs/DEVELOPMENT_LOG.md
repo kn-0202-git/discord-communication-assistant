@@ -1989,3 +1989,86 @@ response = await client.audio.transcriptions.create(
 - Issue #33: /transcribe コマンド実装
   - 録音ファイルの文字起こし
   - VoiceSession.transcription への保存
+
+---
+
+## 2026-01-12: Issue #33 /transcribe コマンド実装
+
+### 目標
+
+`/transcribe {session_id}` コマンドを実装し、録音セッションの音声ファイルをWhisper APIで文字起こしする。
+
+### 実施内容
+
+#### Step 1: テスト作成（TDD）
+
+**ファイル**: `tests/test_commands.py`
+
+4つのテストケースを追加（CMD-15 ~ CMD-18）:
+- CMD-15: 正常系 - 文字起こし成功
+- CMD-16: セッションID未検出
+- CMD-17: 音声ファイル未存在
+- CMD-18: サーバー外での実行
+
+#### Step 2: コマンド実装
+
+**ファイル**: `src/bot/commands.py`
+
+**追加メソッド**:
+- `_register_transcribe_command()`: コマンド登録
+- `_handle_transcribe()`: コマンドハンドラ
+
+**処理フロー**:
+1. `defer(thinking=True)` で即座応答
+2. Guild/Workspace検証
+3. `get_voice_session_by_id()` でセッション取得
+4. `file_path` の存在確認
+5. 音声ファイル読み込み（`Path.read_bytes()`）
+6. `WhisperProvider.transcribe()` で文字起こし
+7. `update_voice_session_transcription()` でDB保存
+8. Discord Embedで結果表示
+
+#### Step 3: テスト実行
+
+```
+195 passed in 1.09s
+```
+
+全テストパス。
+
+#### Step 4: 品質チェック
+
+```
+ruff check src/ → All checks passed!
+pyright src/ → 0 errors, 0 warnings
+```
+
+### 技術ポイント
+
+**WhisperProviderの使用**:
+```python
+provider = WhisperProvider(api_key=api_key, model="whisper-1")
+transcription = await provider.transcribe(audio_bytes, language="ja")
+```
+
+**既存パターンの活用**:
+- `/record` コマンドと同様のvalidationフロー
+- Discord Embedでの結果表示
+- 長い結果は2000文字で切り詰め
+
+### 学んだこと
+
+1. **TDDの効果**: テストを先に書くことで仕様が明確になった
+2. **モックパターン**: `monkeypatch.setenv()` と `unittest.mock.patch` の併用
+3. **既存コードの再利用**: 既存のコマンドパターンに沿った実装で一貫性を保てた
+
+### 作成/変更ファイル
+
+| ファイル | 変更内容 |
+|----------|----------|
+| src/bot/commands.py | /transcribe コマンド追加（約90行） |
+| tests/test_commands.py | TestTranscribeCommandクラス追加（4テスト） |
+
+### 次のステップ
+
+- Issue #34: Phase 2統合テスト
