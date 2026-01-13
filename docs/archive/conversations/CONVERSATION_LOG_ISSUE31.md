@@ -13,7 +13,7 @@
 
 **ユーザー**:
 > 続きをやってください
-> docs/HANDOVER_2025-01-09_2.md を読む
+> docs/archive/handover/HANDOVER_2025-01-09_2.md を読む
 > feature/issue-30 を main にマージしてから Issue #31 を開始
 
 **Claude**:
@@ -190,8 +190,8 @@ class BotCommands:
 | src/bot/voice_recorder.py | 新規作成 |
 | src/bot/commands.py | /record コマンド追加 |
 | tests/test_voice_recorder.py | 新規作成（17テスト） |
-| docs/DEVELOPMENT_LOG.md | Issue #30-31 の記録追加 |
-| docs/DEVELOPMENT_PLAN.md | Issue #30, #31 を完了に更新 |
+| docs/logs/DEVELOPMENT_LOG.md | Issue #30-31 の記録追加 |
+| docs/planning/DEVELOPMENT_PLAN.md | Issue #30, #31 を完了に更新 |
 
 ## まとめ
 

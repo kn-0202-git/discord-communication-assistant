@@ -29,12 +29,12 @@ hi
 
 **発見した問題点：**
 1. ❌ ドキュメント参照エラー - CLAUDE.mdで参照している7つのファイルが存在しない
-   - docs/VISION.md
-   - docs/REQUIREMENTS.md
-   - docs/ARCHITECTURE.md
-   - docs/TROUBLESHOOTING.md
-   - docs/DECISIONS.md
-   - docs/DISCUSSION_SUMMARY.md
+   - docs/specs/VISION.md
+   - docs/specs/REQUIREMENTS.md
+   - docs/specs/ARCHITECTURE.md
+   - docs/reference/TROUBLESHOOTING.md
+   - docs/reference/DECISIONS.md
+   - docs/reference/DISCUSSION_SUMMARY.md
    - docs/TEST_PLAN.md
 
 2. ⚠️ 空のソースモジュール - src/配下に実際のコードがない
@@ -103,9 +103,9 @@ statusについては案を考えてほしい。
 
 ### Claude
 以下のファイルを作成・更新しました：
-- docs/ISSUES_STATUS.md（新規作成）
+- docs/planning/ISSUES_STATUS.md（新規作成）
 - CLAUDE.md（参照追加）
-- docs/DISCUSSION_SUMMARY.md（議論記録追加）
+- docs/reference/DISCUSSION_SUMMARY.md（議論記録追加）
 
 ### ユーザー
 ```
@@ -114,7 +114,7 @@ OK.gitに反映して
 
 ### Claude
 ```bash
-git add docs/ISSUES_STATUS.md CLAUDE.md docs/DISCUSSION_SUMMARY.md
+git add docs/planning/ISSUES_STATUS.md CLAUDE.md docs/reference/DISCUSSION_SUMMARY.md
 git commit -m "feat: add ISSUES_STATUS.md for tracking development issues"
 ```
 
@@ -345,7 +345,7 @@ ghコマンドはないのはなぜ？加えてマージする前に開発記録
 ```
 
 ### Claude
-docs/DEVELOPMENT_LOG.mdを作成しました。
+docs/logs/DEVELOPMENT_LOG.mdを作成しました。
 
 ---
 
@@ -362,7 +362,7 @@ docs/DEVELOPMENT_LOG.mdを作成しました。
 ```
 
 ### Claude
-docs/CONVERSATION_LOG_ISSUE1.md（このファイル）を作成しました。
+docs/archive/conversations/CONVERSATION_LOG_ISSUE1.md（このファイル）を作成しました。
 
 ---
 

@@ -79,8 +79,8 @@
 - [ ] ドキュメント更新（必要なら）
 
 ## 関連ドキュメント
-- REQUIREMENTS.md: #{セクション番号}
-- ARCHITECTURE.md: #{セクション番号}
+- docs/specs/REQUIREMENTS.md: #{セクション番号}
+- docs/specs/ARCHITECTURE.md: #{セクション番号}
 
 ## テストケース
 - TEST_PLAN.md: {テストID}
@@ -151,7 +151,7 @@ uv run ruff check src/
 
 ## 8. 最終ゴールとの対応表
 
-VISION.mdで定義した最終ゴールと、各Phaseでの対応状況:
+docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状況:
 
 | 最終ゴール | Phase 1 | Phase 2 | Phase 3 |
 |------------|---------|---------|---------|
@@ -222,6 +222,19 @@ VISION.mdで定義した最終ゴールと、各Phaseでの対応状況:
 | #24 | SQLite Volume対応 | データ永続化確認 | 未着手 |
 | #25 | Fly.ioデプロイ | 本番稼働確認 | 未着手 |
 
+### Step 5.5: Geminiレビュー対応（並行）
+
+| Issue | タスク | 完了条件 | 状態 |
+|-------|--------|----------|------|
+| G1 | MAX_ATTACHMENT_SIZEのconfig化 | config.yaml反映 + テスト更新 | 未着手 |
+| G2 | TokenCounter導入 | 長文トリムの動作確認 | 未着手 |
+| G3 | MagicMock autospec化 | 主要テストのautospec化完了 | 未着手 |
+| G4 | 共有aiohttpセッション導入 | セッション再利用の確認 | 未着手 |
+| G5 | gitleaks導入方針決定 | 運用ルールに反映 | 未着手 |
+| G6 | main.py初期化のファクトリ化 | エントリ分離とテスト容易性 | 未着手 |
+| G7 | MessageService抽出 | Handlerの責務分離 | 未着手 |
+| G8 | AIRouterテスト分割 | 選択ロジックの単体テスト追加 | 未着手 |
+
 ### Step 6: 統合・テスト
 
 | Issue | タスク | 完了条件 | 状態 |
@@ -260,7 +273,7 @@ VISION.mdで定義した最終ゴールと、各Phaseでの対応状況:
 
 ### 実施タイミング
 
-Phase 2 Step 4（Google Drive連携）完了後、Step 6（統合テスト）の前
+Phase 2 Step 4（Google Drive連携）完了後、Step 6（統合テスト）の前。Step 5と並行して「Geminiレビュー対応（Step 5.5）」を進める。
 
 **変更履歴**: 2025-01-06 順序変更。ローカル機能を先に完成させてからクラウド移行する方針に変更。
 

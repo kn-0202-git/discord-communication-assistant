@@ -6,8 +6,8 @@
 
 このファイルはPhase 3の開発記録です。
 過去の記録は以下のアーカイブを参照してください：
-- [Phase 1（Issue #1-14）](DEVELOPMENT_LOG_PHASE1.md)
-- [Phase 2（Issue #15-31）](DEVELOPMENT_LOG_PHASE2.md)
+- [Phase 1（Issue #1-14）](../archive/logs/DEVELOPMENT_LOG_PHASE1.md)
+- [Phase 2（Issue #15-31）](../archive/logs/DEVELOPMENT_LOG_PHASE2.md)
 
 要約は [DEVELOPMENT_SUMMARY.md](DEVELOPMENT_SUMMARY.md) を参照してください。
 
@@ -316,8 +316,8 @@ def mock_storage(self, tmp_path: Path) -> "LocalStorage":
 |----------|----------|
 | tests/test_integration_phase2.py | 正常系統合テスト（10テスト） |
 | tests/test_integration_phase2_errors.py | エラー系統合テスト（15テスト） |
-| docs/DEVELOPMENT_PLAN.md | Issue #34を完了に更新 |
-| docs/CONVERSATION_LOG_ISSUE34.md | 会話ログ作成 |
+| docs/planning/DEVELOPMENT_PLAN.md | Issue #34を完了に更新 |
+| docs/archive/conversations/CONVERSATION_LOG_ISSUE34.md | 会話ログ作成 |
 
 ### 次のステップ
 

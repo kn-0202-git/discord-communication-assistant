@@ -61,7 +61,7 @@ source ~/.zshrc
 ### Issue完了時の文書作成忘れ
 
 #### 症状
-Issue完了後、DEVELOPMENT_LOG.md や CONVERSATION_LOG を作成せずにマージしてしまう
+Issue完了後、docs/logs/DEVELOPMENT_LOG.md や docs/archive/conversations/CONVERSATION_LOG_*.md を作成せずにマージしてしまう
 
 #### 原因
 1. コード実装に集中すると記録作成を後回しにする
@@ -73,15 +73,15 @@ Issue完了後、DEVELOPMENT_LOG.md や CONVERSATION_LOG を作成せずにマ�
 **対策 A: Issue開始時に記録タスクをTodoに追加**
 ```
 TodoWriteに必ず含める項目:
-- 📝 DEVELOPMENT_LOG.md 更新
-- 📝 CONVERSATION_LOG 作成
-- 📝 DEVELOPMENT_PLAN.md / ISSUES_STATUS.md 更新
+- 📝 docs/logs/DEVELOPMENT_LOG.md 更新
+- 📝 docs/archive/conversations/CONVERSATION_LOG 作成
+- 📝 docs/planning/DEVELOPMENT_PLAN.md / docs/planning/ISSUES_STATUS.md 更新
 ```
 
 **対策 B: ブランチ作成時に空ファイルを作成**
 ```bash
 # ブランチ作成後すぐに実行
-touch docs/CONVERSATION_LOG_ISSUE{N}.md
+touch docs/archive/conversations/CONVERSATION_LOG_ISSUE{N}.md
 ```
 
 #### 根本原因分析

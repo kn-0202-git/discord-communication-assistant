@@ -36,22 +36,22 @@ cp .env.example .env
 uv run python -m src.main
 ```
 
-詳細は [docs/SETUP.md](docs/SETUP.md) を参照。
+詳細は [docs/guides/SETUP.md](docs/guides/SETUP.md) を参照。
 
 ## ドキュメント
 
 | 文書 | 内容 |
 |------|------|
-| [VISION.md](docs/VISION.md) | プロジェクトのゴール |
-| [ROADMAP.md](docs/ROADMAP.md) | 全体計画 |
-| [REQUIREMENTS.md](docs/REQUIREMENTS.md) | 機能要件 |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 設計 |
-| [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) | 開発スケジュール |
+| [VISION.md](docs/specs/VISION.md) | プロジェクトのゴール |
+| [ROADMAP.md](docs/planning/ROADMAP.md) | 全体計画 |
+| [REQUIREMENTS.md](docs/specs/REQUIREMENTS.md) | 機能要件 |
+| [ARCHITECTURE.md](docs/specs/ARCHITECTURE.md) | 設計 |
+| [DEVELOPMENT_PLAN.md](docs/planning/DEVELOPMENT_PLAN.md) | 開発スケジュール |
 | [TEST_PLAN.md](docs/TEST_PLAN.md) | テスト計画 |
-| [SETUP.md](docs/SETUP.md) | 環境構築 |
-| [USER_GUIDE.md](docs/USER_GUIDE.md) | 利用者向けガイド |
-| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 問題と解決策 |
-| [DECISIONS.md](docs/DECISIONS.md) | 設計決定記録 |
+| [SETUP.md](docs/guides/SETUP.md) | 環境構築 |
+| [USER_GUIDE.md](docs/guides/USER_GUIDE.md) | 利用者向けガイド |
+| [TROUBLESHOOTING.md](docs/reference/TROUBLESHOOTING.md) | 問題と解決策 |
+| [DECISIONS.md](docs/reference/DECISIONS.md) | 設計決定記録 |
 
 ## 技術スタック
 

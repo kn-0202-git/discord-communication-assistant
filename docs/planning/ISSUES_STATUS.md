@@ -47,8 +47,8 @@
 ② 対応中は status を 🟡 に
     ↓
 ③ 解決したら:
-   - TROUBLESHOOTING.md に詳細を追加
-   - DEVELOPMENT_LOG.md に記録
+   - docs/reference/TROUBLESHOOTING.md に詳細を追加
+   - docs/logs/DEVELOPMENT_LOG.md に記録
    - このセクションを 🟢 完了 に
 ```
 

@@ -136,17 +136,17 @@
 
 ### 議論内容
 - レビューで発見した課題をどこに記録するか
-- ROADMAP.mdに追加するか、別ファイルにするか
+- docs/planning/ROADMAP.mdに追加するか、別ファイルにするか
 
 ### 選択肢
-- A: ROADMAP.mdに追加（ファイル数が増えない）
+- A: docs/planning/ROADMAP.mdに追加（ファイル数が増えない）
 - B: 別ファイル作成（役割が明確）
 
 ### 決定事項
-- **B: 別ファイル（ISSUES_STATUS.md）を作成**
+- **B: 別ファイル（docs/planning/ISSUES_STATUS.md）を作成**
 - 理由：
-  - ROADMAP.md = 「何を作るか」（フェーズ全体像）
-  - ISSUES_STATUS.md = 「今何が残っているか」（課題管理）
+  - docs/planning/ROADMAP.md = 「何を作るか」（フェーズ全体像）
+  - docs/planning/ISSUES_STATUS.md = 「今何が残っているか」（課題管理）
   - 役割が違うので分けた方が管理しやすい
 
 ### statusの定義
@@ -158,7 +158,7 @@
 | 🟢 完了 | 解決済み |
 
 ### 関連更新
-- docs/ISSUES_STATUS.md を新規作成
+- docs/planning/ISSUES_STATUS.md を新規作成
 - CLAUDE.md の参照テーブルに追加
 
 ---

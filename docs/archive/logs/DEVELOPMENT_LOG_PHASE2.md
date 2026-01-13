@@ -189,7 +189,7 @@ Issue開始時に以下をTodoに含める：
 
 #### 対策 B: 空ファイル事前作成
 
-ブランチ作成直後に `docs/CONVERSATION_LOG_ISSUE{N}.md` を作成しておく。
+ブランチ作成直後に `docs/archive/conversations/CONVERSATION_LOG_ISSUE{N}.md` を作成しておく。
 
 ### 問題解決フロー（新規定義）
 
@@ -224,11 +224,11 @@ Issue開始時に以下をTodoに含める：
 
 | ファイル | 変更内容 |
 |----------|----------|
-| docs/TROUBLESHOOTING.md | 「開発プロセス」セクション追加 |
-| docs/ISSUES_STATUS.md | 「プロセス改善」セクション追加 |
+| docs/reference/TROUBLESHOOTING.md | 「開発プロセス」セクション追加 |
+| docs/planning/ISSUES_STATUS.md | 「プロセス改善」セクション追加 |
 | CLAUDE.md | 問題解決フロー追記 |
-| docs/DEVELOPMENT_PLAN.md | Phase 2 Step順序変更 |
-| docs/DEVELOPMENT_LOG.md | この記録 |
+| docs/planning/DEVELOPMENT_PLAN.md | Phase 2 Step順序変更 |
+| docs/logs/DEVELOPMENT_LOG.md | この記録 |
 
 ### 学んだこと
 

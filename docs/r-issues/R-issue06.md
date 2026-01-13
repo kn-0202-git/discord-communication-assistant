@@ -1,0 +1,71 @@
+# R-issue06
+
+- レビューの目的: CodexとClaudeが相互に作業履歴を把握できる手段を整理し、運用方針を合意する
+- 内容（参照文書）:
+  - docs/logs/DEVELOPMENT_LOG.md
+  - docs/archive/conversations/CONVERSATION_LOG_*.md
+  - docs/handover/HANDOVER_*.md
+  - docs/reference/R-issue_summary.md
+  - CLAUDE.md
+- 日付: 2026-01-12
+- レビュー者: Codex
+- ステータス: done
+
+LLM1（レビュー者）
+- 重要指摘:
+  - 現状は開発記録/会話ログ/引き継ぎが分散し、一次情報の参照点が複数ある
+  - Codexが実装する局面では、Claudeがどこまで進んだかを即時に把握しにくい
+  - 参照範囲が広く、トークン消費の原因にもなっている
+- 課題:
+  - LLM間の「直近状態」「意思決定理由」の即時共有
+  - 参照点の固定化と最小化
+  - 監査性を損なわない運用
+- 現状の手段（整理）:
+  - docs/logs/DEVELOPMENT_LOG.md: 公式の開発履歴（詳細）
+  - docs/archive/conversations/CONVERSATION_LOG_*.md: 会話詳細（重い）
+  - docs/handover/HANDOVER_*.md: 引き継ぎサマリー（最新のみ参照が有効）
+  - docs/reference/R-issue_summary.md + docs/r-issues/: 運用・レビューの意思決定記録
+  - CLAUDE.md: 参照ルール/固定参照セット/運用ルール
+- 専門家レビュー（議論）:
+  - プロジェクト管理:
+    - 「最新状態の一次情報」を1つに固定すべき
+  - ソフトウェアエンジニア:
+    - 変更履歴は詳細と要約を分け、要約を参照起点にする
+  - QA:
+    - テスト結果は最新サマリーに集約し、詳細はログへ
+  - セキュリティ:
+    - 機密情報の混入チェックは最終サマリーに組み込む
+  - AIエンジニア:
+    - 固定参照セットを最小化し、詳細はオンデマンド参照へ
+- レビュー者意見:
+  - 「引き継ぎカプセル（最新）+ 開発サマリー（最新）」を起点にするのが最短
+- Codex対応（方針案）:
+  - A: 最新状態の一次情報を docs/handover/HANDOVER_*.md（最新）に固定
+  - B: 開発サマリー専用の短文ログを用意（例: docs/DEV_STATUS.md）
+  - C: 参照順序を明文化（DEV_STATUS -> HANDOVER -> DEVELOPMENT_LOG）
+  - D: Codex/Claudeの双方が更新する最小項目を定義
+- 詳細内容:
+  - 背景/問題:
+    - 開発主体が切り替わると参照箇所が増え、過去理解に時間がかかる
+  - 対策候補:
+    - 「一次情報=最新サマリー」の固定化
+    - 変更の要約層を新設し、詳細は既存ログに残す
+  - 選定理由:
+    - 監査性を保ちながら、参照コストを大きく減らせる
+- レビューされる側への依頼文:
+  - 以下のR-issue06について、LLM2（レビューされる側）欄を記入してください。
+  - 観点: 指摘に対する考え / 対応方法 / 対応結果
+
+LLM2（レビューされる側）
+- 指摘に対する考え:
+  - 現状の参照導線は整備されているが、優先順位の明示が弱い
+  - 既存のHANDOVER_*.mdとDEVELOPMENT_SUMMARY.mdを活用し、新規ファイル追加なしで解決可能
+  - DEV_STATUS.md新設（方針案B）はDEVELOPMENT_SUMMARY.mdと役割が重複するため不採用
+- 対応方法:
+  - 方針A+Cを採用: HANDOVERを一次情報に固定 + 参照順序を明文化
+  - CLAUDE.mdの「ファイル参照ルール」セクションに「セッション開始時の参照順序（推奨）」を追加
+  - 参照順序: DEVELOPMENT_SUMMARY → HANDOVER（最新） → DEVELOPMENT_PLAN → 詳細ログ（必要時のみ）
+- 対応結果:
+  - CLAUDE.md に参照順序を明文化（109行目付近）
+  - 新規ファイル追加なし、監査性は維持
+  - LLM間での「最新状態の一次情報」がHANDOVER_*.md（最新）に固定された

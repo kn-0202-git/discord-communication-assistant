@@ -281,17 +281,35 @@ discord-business-assistant/
 ├── .env.example
 ├── .gitignore
 ├── docs/
-│   ├── VISION.md
-│   ├── ROADMAP.md
-│   ├── REQUIREMENTS.md
-│   ├── ARCHITECTURE.md
-│   ├── DEVELOPMENT_PLAN.md
-│   ├── TEST_PLAN.md
-│   ├── SETUP.md
-│   ├── USER_GUIDE.md
-│   ├── TROUBLESHOOTING.md
-│   ├── DECISIONS.md
-│   └── DISCUSSION_SUMMARY.md
+│   ├── INDEX.md
+│   ├── specs/
+│   │   ├── VISION.md
+│   │   ├── REQUIREMENTS.md
+│   │   ├── ARCHITECTURE.md
+│   │   └── MACHINE_DIAGRAMS.md
+│   ├── guides/
+│   │   ├── SETUP.md
+│   │   ├── USER_GUIDE.md
+│   │   └── DISCORD_SETUP.md
+│   ├── planning/
+│   │   ├── DEVELOPMENT_PLAN.md
+│   │   ├── ROADMAP.md
+│   │   └── ISSUES_STATUS.md
+│   ├── logs/
+│   │   ├── DEVELOPMENT_LOG.md
+│   │   └── DEVELOPMENT_SUMMARY.md
+│   ├── handover/
+│   │   └── HANDOVER_YYYY-MM-DD.md
+│   ├── reference/
+│   │   ├── DECISIONS.md
+│   │   ├── TROUBLESHOOTING.md
+│   │   ├── DISCUSSION_SUMMARY.md
+│   │   ├── LLM_COLLAB_LOG.md
+│   │   └── R-issue_summary.md
+│   └── archive/
+│       ├── logs/
+│       ├── handover/
+│       └── conversations/
 ├── src/
 │   ├── __init__.py
 │   ├── main.py

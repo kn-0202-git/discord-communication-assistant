@@ -42,7 +42,7 @@
 
 **テスト**: 10 → 120
 
-**詳細**: [DEVELOPMENT_LOG_PHASE1.md](DEVELOPMENT_LOG_PHASE1.md)
+**詳細**: [DEVELOPMENT_LOG_PHASE1.md](../archive/logs/DEVELOPMENT_LOG_PHASE1.md)
 
 ---
 
@@ -58,7 +58,7 @@
 
 **テスト**: 120 → 180
 
-**詳細**: [DEVELOPMENT_LOG_PHASE2.md](DEVELOPMENT_LOG_PHASE2.md)
+**詳細**: [DEVELOPMENT_LOG_PHASE2.md](../archive/logs/DEVELOPMENT_LOG_PHASE2.md)
 
 ---
 
@@ -80,9 +80,9 @@
 
 | 目的 | 参照ファイル |
 |------|-------------|
-| 直近の作業状況 | このファイル + HANDOVER_*.md（最新） |
-| Phase 1の詳細 | DEVELOPMENT_LOG_PHASE1.md |
-| Phase 2の詳細 | DEVELOPMENT_LOG_PHASE2.md |
+| 直近の作業状況 | このファイル + ../handover/HANDOVER_*.md（最新） |
+| Phase 1の詳細 | ../archive/logs/DEVELOPMENT_LOG_PHASE1.md |
+| Phase 2の詳細 | ../archive/logs/DEVELOPMENT_LOG_PHASE2.md |
 | Phase 3の詳細 | DEVELOPMENT_LOG.md |
-| 設計決定の経緯 | DECISIONS.md |
-| 残課題 | ISSUES_STATUS.md |
+| 設計決定の経緯 | ../reference/DECISIONS.md |
+| 残課題 | ../planning/ISSUES_STATUS.md |

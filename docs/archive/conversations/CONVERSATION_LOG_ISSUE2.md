@@ -214,11 +214,11 @@ git push origin main
 ✅ 成功
 
 ### Assistant - ドキュメント更新
-`docs/DEVELOPMENT_PLAN.md` を更新:
+`docs/planning/DEVELOPMENT_PLAN.md` を更新:
 - Issue #2 の状態を「未着手」→「✅完了」に変更
 - 次のアクションを「Issue #3 メッセージ保存」に更新
 
-`docs/ISSUES_STATUS.md` を更新:
+`docs/planning/ISSUES_STATUS.md` を更新:
 - 課題 #2「src/main.pyがない」を完了課題に移動
 - Issue #2 を完了課題に追加
 
@@ -273,7 +273,7 @@ Todoリストを更新:
 4. 変更をコミット・プッシュ
 
 ### Assistant
-`docs/DEVELOPMENT_LOG.md` に Issue #2 の記録を追記しました。
+`docs/logs/DEVELOPMENT_LOG.md` に Issue #2 の記録を追記しました。
 
 **記録内容:**
 - 開始時刻、目標
@@ -285,7 +285,7 @@ Todoリストを更新:
 - 次のステップ
 
 ### Assistant（現在）
-`docs/CONVERSATION_LOG_ISSUE2.md` を作成中...
+`docs/archive/conversations/CONVERSATION_LOG_ISSUE2.md` を作成中...
 
 ---
 

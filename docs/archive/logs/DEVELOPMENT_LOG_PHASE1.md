@@ -376,8 +376,8 @@ Discord Botの基盤を実装し、メッセージイベントを受信できる
 
 #### Step 11: ドキュメント更新
 - **更新ファイル**:
-  - `docs/DEVELOPMENT_PLAN.md`: Issue #2を完了に変更
-  - `docs/ISSUES_STATUS.md`: Issue #2を完了課題に追加、課題#2を完了に移動
+  - `docs/planning/DEVELOPMENT_PLAN.md`: Issue #2を完了に変更
+  - `docs/planning/ISSUES_STATUS.md`: Issue #2を完了課題に追加、課題#2を完了に移動
 
 - **コマンド**: `git add docs/ && git commit -m "docs: update status for Issue #2 completion"`
 - **結果**: ✅ **成功**
@@ -453,7 +453,7 @@ tests/test_bot.py::TestMessageListenerCallback::test_message_callback_is_called 
 - **結果**: ✅ 成功
 
 #### Step 3: Discord環境セットアップ手順書作成
-- **ファイル**: `docs/DISCORD_SETUP.md`
+- **ファイル**: `docs/guides/DISCORD_SETUP.md`
 - **内容**:
   - Discord Developer PortalでBot作成手順
   - MESSAGE CONTENT INTENT有効化（重要）
@@ -599,7 +599,7 @@ tests/test_bot.py::TestMessageListenerCallback::test_message_callback_is_called 
 ### 成果物
 | ファイル | 内容 |
 |----------|------|
-| docs/DISCORD_SETUP.md | Discordセットアップ手順書 |
+| docs/guides/DISCORD_SETUP.md | Discordセットアップ手順書 |
 | src/storage/base.py | ストレージ抽象クラス（63行） |
 | src/storage/local.py | ローカルストレージ実装（103行） |
 | src/storage/__init__.py | エクスポート設定 |
@@ -707,8 +707,8 @@ Workspace/Room分離が正しく動作していることを確認する。
 #### Step 4: ドキュメント更新
 
 **更新ファイル:**
-- `docs/DEVELOPMENT_PLAN.md`: Issue #5 を完了に変更、注記追加
-- `docs/ISSUES_STATUS.md`: Issue #5 を完了課題に追加
+- `docs/planning/DEVELOPMENT_PLAN.md`: Issue #5 を完了に変更、注記追加
+- `docs/planning/ISSUES_STATUS.md`: Issue #5 を完了課題に追加
 - Issue #14 に「複数サーバー実機テスト（#5確認含む）」を追記
 
 #### Step 5: 記録漏れの発見（失敗）
@@ -728,8 +728,8 @@ Workspace/Room分離が正しく動作していることを確認する。
 ### 成果物
 | ファイル | 内容 |
 |----------|------|
-| docs/DEVELOPMENT_PLAN.md | Issue #5 完了、注記追加、Issue #14 更新 |
-| docs/ISSUES_STATUS.md | Issue #5 を完了課題に追加 |
+| docs/planning/DEVELOPMENT_PLAN.md | Issue #5 完了、注記追加、Issue #14 更新 |
+| docs/planning/ISSUES_STATUS.md | Issue #5 を完了課題に追加 |
 
 ### 学んだこと
 1. **コード変更がなくても記録は必須**: Issue完了時の必須作業はコード有無に関係なく実行する

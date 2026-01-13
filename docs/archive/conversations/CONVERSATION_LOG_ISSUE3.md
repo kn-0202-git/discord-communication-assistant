@@ -63,7 +63,7 @@
 
 **Claude**: 計画に基づいて実装を開始:
 1. ブランチ作成 (`feature/issue-3`)
-2. docs/DISCORD_SETUP.md 作成
+2. docs/guides/DISCORD_SETUP.md 作成
 3. 依存パッケージ追加（aiohttp, python-dotenv）
 4. src/storage/ 実装
 5. src/bot/handlers.py 実装
