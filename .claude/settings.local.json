@@ -48,7 +48,12 @@
       "Bash(.venv/bin/ruff check src/)",
       "Bash(xargs:*)",
       "Bash(wc:*)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Bash(git config:*)",
+      "Bash(pre-commit install:*)",
+      "Bash(uv run:*)",
+      "Bash(~/.local/bin/uv run:*)",
+      "Bash(git reset:*)"
     ]
   }
 }

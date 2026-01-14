@@ -97,6 +97,28 @@
 
 - #33（/transcribe）またはG1/G4以降の残タスクに着手
 
+## 2026-01-12: Issue #26 GoogleDriveStorage実装
+
+### 目標
+
+StorageProviderに準拠したGoogle Driveストレージ実装を追加する。
+
+### 実施内容
+
+- GoogleDriveStorageを実装（保存/取得/削除、フォルダ階層作成）
+- 共有セッション管理とトークン認証ヘッダを追加
+- ストレージのexportを更新
+- ユニットテストを追加
+
+### テスト結果
+
+- コマンド: 未実施
+- 結果: -
+
+### 次のステップ
+
+- #27 OAuth設定に着手
+
 ## 2026-01-11: Issue #32 Whisperプロバイダー実装
 
 ### 目標
@@ -406,3 +428,54 @@ def mock_storage(self, tmp_path: Path) -> "LocalStorage":
 ### 次のステップ
 
 - Issue #35: 本番運用テスト（複数社で動作確認）
+
+---
+
+## 2026-01-13: G5 gitleaks導入
+
+### Agent
+- Claude Opus 4.5
+
+### 目標
+gitleaksを導入し、シークレットの誤コミットを防止する。
+
+### 実施内容
+
+#### Step 1: 現状調査
+- pre-commit設定: ruff + 基本フックのみ
+- GitHub Actions: テスト・リント・カバレッジのみ
+- .env: gitで追跡されていない（安全）
+
+#### Step 2: pre-commit設定追加
+- `.pre-commit-config.yaml` にgitleaks v8.21.2を追加
+
+#### Step 3: .gitleaksignore作成
+- テストファイル、ドキュメント、.env.exampleを除外
+
+#### Step 4: GitHub Actions更新
+- gitleaksジョブを追加（fetch-depth: 0で全履歴スキャン）
+
+#### Step 5: ドキュメント更新
+- `docs/rules/CORE_RULES.md` のセキュリティセクションを更新
+
+#### Step 6: 既存履歴スキャン
+- `pre-commit run gitleaks --all-files` でスキャン実行
+- 結果: **Passed**（シークレット漏洩なし）
+
+### テスト結果
+
+- コマンド: `uv run pytest tests/ -v`
+- 結果: 225 passed, 2 failed（既存問題）
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|----------|----------|
+| .pre-commit-config.yaml | gitleaks hook追加 |
+| .gitleaksignore | 新規作成（誤検知除外設定） |
+| .github/workflows/test.yml | gitleaksジョブ追加 |
+| docs/rules/CORE_RULES.md | セキュリティセクション更新 |
+
+### 次のステップ
+
+- G8: AIRouterテスト分割に着手

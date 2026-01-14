@@ -113,7 +113,7 @@
 
 | Issue | 課題 | 優先度 | status | 備考 |
 |-------|------|--------|--------|------|
-| #26 | GoogleDriveStorage実装 | 中 | 🔴 未対応 | StorageProviderインターフェース準拠 |
+| #26 | GoogleDriveStorage実装 | 中 | 🟢 完了 | StorageProviderインターフェース準拠 |
 | #27 | OAuth設定 | 中 | 🔴 未対応 | 認証フロー完了 |
 | #28 | /saveコマンド | 中 | 🔴 未対応 | 手動アップロード成功 |
 | #29 | 自動アップロード | 中 | 🔴 未対応 | config設定で制御 |
@@ -135,12 +135,13 @@
 | G2 | TokenCounter導入 | 高 | 🟢 完了 | docs/specs/TOKEN_COUNTER.md作成 + 長文トリム確認 |
 | G3 | MagicMock autospec化 | 高 | 🟢 完了 | 主要テストのautospec化完了 |
 | G4 | 共有aiohttpセッション導入 | 高 | 🟢 完了 | セッション再利用の確認 |
+| G5 | gitleaks導入 | 中 | 🟢 完了 | pre-commit + GitHub Actions |
 
 ### Step 6: 統合・テスト
 
 | Issue | 課題 | 優先度 | status | 備考 |
 |-------|------|--------|--------|------|
-| #34 | Phase 2統合テスト | 高 | 🔴 未対応 | 全機能連携確認 |
+| #34 | Phase 2統合テスト | 高 | 🟢 完了 | 全機能連携確認（25テスト） |
 | #35 | 本番運用テスト | 高 | 🔴 未対応 | 複数社で動作確認 |
 
 ---

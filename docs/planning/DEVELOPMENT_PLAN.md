@@ -123,7 +123,7 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 
 | Issue | タスク | 完了条件 | 状態 |
 |-------|--------|----------|------|
-| #26 | GoogleDriveStorage実装 | StorageProviderインターフェース準拠 | 未着手 |
+| #26 | GoogleDriveStorage実装 | StorageProviderインターフェース準拠 | ✅完了 |
 | #27 | OAuth設定 | 認証フロー完了 | 未着手 |
 | #28 | /saveコマンド | 手動アップロード成功 | 未着手 |
 | #29 | 自動アップロード | config設定で制御 | 未着手 |
@@ -148,7 +148,7 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 | G8 | AIRouterテスト分割 | 選択ロジックの単体テスト追加 | 未着手 |
 | G6 | main.py初期化のファクトリ化 | エントリ分離とテスト容易性 | 未着手 |
 | G7 | MessageService抽出 | Handlerの責務分離 | 未着手 |
-| G5 | gitleaks導入方針決定 | 運用ルールに反映 | 未着手 |
+| G5 | gitleaks導入方針決定 | 運用ルールに反映 | ✅完了 |
 
 ### Step 6: 統合・テスト【一部完了】
 

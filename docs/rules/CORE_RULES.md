@@ -65,3 +65,7 @@
 
 - 機密情報の記載禁止（APIキー/PII）
 - 破壊的操作は必ず確認する
+- gitleaksによるシークレット検出
+  - pre-commit hookでコミット時に自動チェック
+  - GitHub ActionsでPR時にも二重チェック
+  - 誤検知は `.gitleaksignore` で除外設定
