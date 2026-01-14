@@ -176,7 +176,7 @@ class TestAIIntegration:
         assert provider_config["api_key"] == "test-key"
 
         # プロバイダー情報を使って実際にプロバイダーを作成できることを確認
-        with patch("src.ai.providers.openai.AsyncOpenAI") as mock_async_openai:
+        with patch("src.ai.providers.openai.AsyncOpenAI", autospec=True) as mock_async_openai:
             mock_client = MagicMock()
             mock_async_openai.return_value = mock_client
             mock_client.chat.completions.create = AsyncMock(

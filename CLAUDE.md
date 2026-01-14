@@ -9,9 +9,9 @@ Claude Codeがこのプロジェクトを理解し、一貫した開発を行う
 請負者とのチャット（Discord）をAIが監視・保存し、過去のやり取りを忘れない仕組みを作る。
 
 詳細は以下を参照：
-- ゴール・背景 → [docs/VISION.md](docs/VISION.md)
-- 機能要件 → [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)
-- 設計 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- ゴール・背景 → [docs/specs/VISION.md](docs/specs/VISION.md)
+- 機能要件 → [docs/specs/REQUIREMENTS.md](docs/specs/REQUIREMENTS.md)
+- 設計 → [docs/specs/ARCHITECTURE.md](docs/specs/ARCHITECTURE.md)
 
 ## 開発者について
 
@@ -42,42 +42,25 @@ Claude Codeがこのプロジェクトを理解し、一貫した開発を行う
 
 両OSで動作するコードを書くこと。パス区切りは `pathlib.Path` を使用。
 
+## 共通ルール
+
+全LLM共通のルールは `docs/rules/CORE_RULES.md` に集約。以降の規約はそちらを正とする。
+
 ## コーディング規約
 
-- 型ヒントを必ず使う
-- docstringを書く（Google style）
-- 関数は小さく、単一責任
-- マジックナンバー禁止（定数化）
-- パスは `pathlib.Path` を使用（OS互換）
-- 抽象化を意識（AI/ストレージは差し替え可能に）
-- ruffでフォーマット・リント
+詳細は `docs/rules/CORE_RULES.md` を参照。
 
 ## テスト方針
 
-- TDD（テスト先行）
-- tests/ にミラー構成
-- 1機能につき最低3テストケース（正常系・異常系・境界値）
-- AI部分はモック化してテスト
-- **テスト結果で品質がわかるようにする**
+詳細は `docs/rules/CORE_RULES.md` を参照。
 
 ## やってはいけないこと
 
-- Workspace AのデータをBに見せる処理
-- APIキーのハードコード
-- テストなしのPR
-- 破壊的なDB操作（DELETE/DROP）を確認なしで実行
-- OS依存のパス記述（`\` や `/` の直書き）
-- AIプロバイダーの直接呼び出し（必ずrouterを経由）
+詳細は `docs/rules/CORE_RULES.md` を参照。
 
 ## 開発フロー
 
-1. GitHub Issueを確認
-2. `feature/issue-{番号}` ブランチを作成
-3. テストを先に書く
-4. 実装
-5. `uv run ruff check src/` でリントチェック
-6. `uv run pytest tests/ -v` で全テスト通過確認
-7. PRを作成
+詳細は `docs/rules/CORE_RULES.md` を参照。
 
 ## コマンド
 ```bash
@@ -108,21 +91,30 @@ uv run python -m src.main
 ### 毎回必ず読むファイル
 - CLAUDE.md（このファイル）
 
+### セッション開始時の参照順序（推奨）
+
+LLM間で状態を共有する際の一次情報として、以下の順序で参照する:
+
+1. **docs/logs/DEVELOPMENT_SUMMARY.md** - 全体進捗（テスト推移、Phase別成果）
+2. **docs/handover/HANDOVER_*.md（最新）** - 直近の状態カプセル（次タスク、ブロッカー）
+3. **docs/planning/DEVELOPMENT_PLAN.md** - Issue一覧と状態
+4. 詳細が必要な場合のみ → docs/logs/DEVELOPMENT_LOG*.md, docs/archive/conversations/CONVERSATION_LOG_*.md
+
 ### 必要に応じて読むファイル
 
 | 状況 | 参照するファイル |
 |------|------------------|
-| 開発の概要・進捗を確認したい | docs/DEVELOPMENT_SUMMARY.md（推奨：まずここから） |
-| エラー・問題が起きた | docs/TROUBLESHOOTING.md |
-| 設計の理由を知りたい | docs/DECISIONS.md |
-| 過去の議論を確認したい | docs/DISCUSSION_SUMMARY.md |
-| 機能の詳細を知りたい | docs/REQUIREMENTS.md |
-| 実装方法を知りたい | docs/ARCHITECTURE.md |
+| 開発の概要・進捗を確認したい | docs/logs/DEVELOPMENT_SUMMARY.md（推奨：まずここから） |
+| エラー・問題が起きた | docs/reference/TROUBLESHOOTING.md |
+| 設計の理由を知りたい | docs/reference/DECISIONS.md |
+| 過去の議論を確認したい | docs/reference/DISCUSSION_SUMMARY.md |
+| 機能の詳細を知りたい | docs/specs/REQUIREMENTS.md |
+| 実装方法を知りたい | docs/specs/ARCHITECTURE.md |
 | テスト方法を知りたい | docs/TEST_PLAN.md |
-| 残課題を確認したい | docs/ISSUES_STATUS.md |
-| 開発の経緯を知りたい（詳細） | docs/DEVELOPMENT_LOG.md（Phase 3）、docs/DEVELOPMENT_LOG_PHASE{N}.md（アーカイブ） |
-| 詳細な会話を確認したい | docs/CONVERSATION_LOG_*.md |
-| 引き継ぎが必要/前回から継続する | docs/HANDOVER_*.md（最新） |
+| 残課題を確認したい | docs/planning/ISSUES_STATUS.md |
+| 開発の経緯を知りたい（詳細） | docs/logs/DEVELOPMENT_LOG.md（現行）、docs/archive/logs/DEVELOPMENT_LOG_PHASE{N}.md（アーカイブ） |
+| 詳細な会話を確認したい | docs/archive/conversations/CONVERSATION_LOG_*.md |
+| 引き継ぎが必要/前回から継続する | docs/handover/HANDOVER_*.md（最新） |
 
 ### ファイル更新タイミング
 
@@ -194,8 +186,8 @@ mainにマージ
 
 #### ステップ1: 開発記録を残す（必須）
 - [ ] 開発記録ファイルに今回のIssueの記録を追記
-  - **Phase 2まで**: `docs/DEVELOPMENT_LOG.md`
-  - **Phase 3以降**: `docs/DEVELOPMENT_LOG_PHASE3.md`（新規Phaseごとにファイル作成）
+  - **現行Phase**: `docs/logs/DEVELOPMENT_LOG.md`
+  - **完了Phase**: `docs/archive/logs/DEVELOPMENT_LOG_PHASE{N}.md` に移動
 - [ ] 含めるべき内容:
   - 開始時刻、目標
   - Step-by-Stepの実施内容（コマンド、結果、解説）
@@ -205,7 +197,7 @@ mainにマージ
   - 次のステップ
 
 #### ステップ2: 会話ログを残す（必須）
-- [ ] `docs/CONVERSATION_LOG_ISSUE{番号}.md` を作成
+- [ ] `docs/archive/conversations/CONVERSATION_LOG_ISSUE{番号}.md` を作成
 - [ ] 含めるべき内容:
   - ユーザーとClaudeの会話を時系列で記録
   - 実装の流れと技術的なポイント
@@ -218,8 +210,8 @@ mainにマージ
   - 統合Issueの冒頭にクイックインデックスを付ける
 
 #### ステップ3: 状態ファイルを更新（必須）
-- [ ] `docs/DEVELOPMENT_PLAN.md`: Issueの状態を「未着手」→「✅完了」に変更
-- [ ] `docs/ISSUES_STATUS.md`: 完了した課題に追加
+- [ ] `docs/planning/DEVELOPMENT_PLAN.md`: Issueの状態を「未着手」→「✅完了」に変更
+- [ ] `docs/planning/ISSUES_STATUS.md`: 完了した課題に追加
 
 #### ステップ4: 関連文書を更新（必要に応じて）
 - [ ] 新しいファイルタイプを作成した場合 → CLAUDE.md参照テーブルに追加
@@ -240,7 +232,7 @@ mainにマージ
 3. **ユーザーに指摘される前に**: 自発的にこれらの作業を実施する
 4. **判断に迷う場合のみユーザーに確認**: 基本は自動で実行
 5. **コード変更がなくても記録は必須**: 議論・設計判断・リスク評価のみの場合も記録する
-6. **Issue開始時に空ファイル作成**: `touch docs/CONVERSATION_LOG_ISSUE{N}.md` で先に作成しておく（忘れ防止）
+6. **Issue開始時に空ファイル作成**: `touch docs/archive/conversations/CONVERSATION_LOG_ISSUE{N}.md` で先に作成しておく（忘れ防止）
 7. **各Issue完了直後に記録**: 複数Issueをまとめて記録せず、1つ完了したらすぐ記録
 8. **セッション終了前チェック**: 記録更新/引き継ぎカプセル/機密情報の混入なしを最終確認
 
@@ -264,7 +256,7 @@ LLMのセッション切替があっても再開できるよう、開始/中間/
 
 ### トークン節約ガイド
 
-- 参照文書の固定セットを優先: CLAUDE.md / docs/DEVELOPMENT_PLAN.md / docs/ISSUES_STATUS.md / docs/HANDOVER_*.md（最新）
+- 参照文書の固定セットを優先: CLAUDE.md / docs/planning/DEVELOPMENT_PLAN.md / docs/planning/ISSUES_STATUS.md / docs/handover/HANDOVER_*.md（最新）
 - 出力は原則5〜7項目以内に制限（詳細は要求時のみ拡張）
 - 変更は差分だけ記載（全文再掲を避ける）
 - テスト結果は合格件数のみ記載（失敗時のみ詳細）
@@ -350,6 +342,71 @@ LLMのセッション切替があっても再開できるよう、開始/中間/
 - プロバイダー切り替えの設計
 
 ## Claude Code運用ルール
+
+## Codex運用ルール（記録の自動実施）
+
+Codexで開発を依頼された場合は、ユーザーから指示がなくても以下を必ず実施する。
+
+### 必須の記録更新（自動）
+- docs/logs/DEVELOPMENT_LOG.md に作業内容を記録
+- docs/archive/conversations/CONVERSATION_LOG_ISSUE{N}.md を作成・記入
+- docs/planning/DEVELOPMENT_PLAN.md の状態更新
+- docs/planning/ISSUES_STATUS.md の状態更新
+
+### 実行タイミング
+- 実装/修正が完了し、テストや確認が終わった直後に記録する
+- セッション終了前に必ず記録の漏れを確認する
+
+### Codex用テンプレート（固定）
+
+開発記録テンプレート（docs/logs/DEVELOPMENT_LOG.md 用）
+※共通テンプレート: docs/templates/log_template.md
+```
+## YYYY-MM-DD: Issue #NN タイトル
+
+### Agent
+-
+
+### 目標
+-
+
+### 実施内容
+-
+
+### テスト結果
+- コマンド:
+- 結果:
+
+### 変更ファイル
+-
+
+### 次のステップ
+-
+```
+
+会話ログテンプレート（docs/archive/conversations/CONVERSATION_LOG_ISSUE{N}.md 用）
+※共通テンプレート: docs/templates/conversation_template.md
+```
+# CONVERSATION_LOG_ISSUE{N}
+
+## Agent
+-
+
+## 要約
+-
+
+## 詳細
+-
+
+## まとめ
+- 実装の流れ:
+- 技術的なポイント:
+- 学んだこと:
+- 今後の改善:
+```
+
+### 補助チェック（任意）
+- `scripts/check_doc_updates.sh {ISSUE_NUMBER}` で記録ファイルの存在を確認する
 
 ### カスタムスラッシュコマンド
 
@@ -474,14 +531,14 @@ Codex（または他のAIレビューツール）からのレビュー結果を�
 
 | ファイル | 役割 |
 |----------|------|
-| `docs/HANDOVER_YYYY-MM-DD.md` | その日の引き継ぎ文書 |
+| `docs/handover/HANDOVER_YYYY-MM-DD.md` | その日の引き継ぎ文書 |
 
 ### 引き継ぎフロー
 
 ```
 セッション終了時
     ↓
-1. docs/HANDOVER_YYYY-MM-DD.md を作成
+1. docs/handover/HANDOVER_YYYY-MM-DD.md を作成
     ↓
 2. 以下の内容を記載:
    - 今回のセッションでやったこと
@@ -493,7 +550,7 @@ Codex（または他のAIレビューツール）からのレビュー結果を�
     ↓
 新しいセッション開始時
     ↓
-4. 最新の HANDOVER_*.md を読む
+4. 最新の handover/HANDOVER_*.md を読む
     ↓
 5. 必要に応じて DEVELOPMENT_LOG.md, ISSUES_STATUS.md も参照
     ↓
@@ -504,6 +561,9 @@ Codex（または他のAIレビューツール）からのレビュー結果を�
 
 ```markdown
 # 引き継ぎ文書 - YYYY-MM-DD
+
+## Agent
+-
 
 ## 今回のセッションでやったこと
 
@@ -536,9 +596,11 @@ Codex（または他のAIレビューツール）からのレビュー結果を�
 
 ## 関連ファイル
 
-- docs/DEVELOPMENT_LOG.md の「YYYY-MM-DD: XXX」セクション
-- docs/ISSUES_STATUS.md
+- docs/logs/DEVELOPMENT_LOG.md の「YYYY-MM-DD: XXX」セクション
+- docs/planning/ISSUES_STATUS.md
 ```
+
+※共通テンプレート: docs/templates/handover_template.md
 
 ### 引き継ぎの頻度
 

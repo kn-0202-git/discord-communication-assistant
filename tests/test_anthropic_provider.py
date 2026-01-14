@@ -35,7 +35,11 @@ class TestAnthropicProvider:
         """AnthropicProviderインスタンス"""
         from src.ai.providers.anthropic import AnthropicProvider
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic", return_value=mock_anthropic_client):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic",
+            autospec=True,
+            return_value=mock_anthropic_client,
+        ):
             return AnthropicProvider(
                 api_key="test-api-key",
                 model="claude-3-5-sonnet-20241022",
@@ -54,7 +58,11 @@ class TestAnthropicProvider:
         mock_response.content = [mock_text_block]
         mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic", return_value=mock_anthropic_client):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic",
+            autospec=True,
+            return_value=mock_anthropic_client,
+        ):
             provider = AnthropicProvider(api_key="test-key", model="claude-3-5-sonnet-20241022")
             result = await provider.generate("Hello, how are you?")
 
@@ -67,7 +75,11 @@ class TestAnthropicProvider:
         """埋め込みがサポートされていないことを確認"""
         from src.ai.providers.anthropic import AnthropicProvider
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic", return_value=mock_anthropic_client):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic",
+            autospec=True,
+            return_value=mock_anthropic_client,
+        ):
             provider = AnthropicProvider(api_key="test-key", model="claude-3-5-sonnet-20241022")
 
             with pytest.raises(AIProviderError) as exc_info:
@@ -87,7 +99,11 @@ class TestAnthropicProvider:
         mock_response.content = [mock_text_block]
         mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic", return_value=mock_anthropic_client):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic",
+            autospec=True,
+            return_value=mock_anthropic_client,
+        ):
             provider = AnthropicProvider(api_key="test-key", model="claude-3-5-sonnet-20241022")
             result = await provider.generate(
                 "Write a poem",
@@ -116,7 +132,11 @@ class TestAnthropicProvider:
             side_effect=APIConnectionError(request=MagicMock())
         )
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic", return_value=mock_anthropic_client):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic",
+            autospec=True,
+            return_value=mock_anthropic_client,
+        ):
             provider = AnthropicProvider(api_key="test-key", model="claude-3-5-sonnet-20241022")
 
             with pytest.raises(AIConnectionError) as exc_info:
@@ -142,7 +162,11 @@ class TestAnthropicProvider:
             )
         )
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic", return_value=mock_anthropic_client):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic",
+            autospec=True,
+            return_value=mock_anthropic_client,
+        ):
             provider = AnthropicProvider(api_key="test-key", model="claude-3-5-sonnet-20241022")
 
             with pytest.raises(AIQuotaExceededError) as exc_info:
@@ -168,7 +192,11 @@ class TestAnthropicProvider:
             )
         )
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic", return_value=mock_anthropic_client):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic",
+            autospec=True,
+            return_value=mock_anthropic_client,
+        ):
             provider = AnthropicProvider(api_key="invalid-key", model="claude-3-5-sonnet-20241022")
 
             with pytest.raises(AIProviderError) as exc_info:
@@ -184,7 +212,10 @@ class TestAnthropicProviderProperties:
         """プロバイダー名が正しく返される"""
         from src.ai.providers.anthropic import AnthropicProvider
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic"):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic",
+            autospec=True,
+        ):
             provider = AnthropicProvider(api_key="test-key", model="claude-3-5-sonnet-20241022")
 
         assert provider.name == "anthropic"
@@ -193,7 +224,10 @@ class TestAnthropicProviderProperties:
         """モデル名が正しく返される"""
         from src.ai.providers.anthropic import AnthropicProvider
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic"):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic",
+            autospec=True,
+        ):
             provider = AnthropicProvider(api_key="test-key", model="claude-3-opus-20240229")
 
         assert provider.model == "claude-3-opus-20240229"
@@ -214,7 +248,9 @@ class TestAnthropicProviderContextGeneration:
         mock_response.content = [mock_text_block]
         mock_client.messages.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.anthropic.AsyncAnthropic", return_value=mock_client):
+        with patch(
+            "src.ai.providers.anthropic.AsyncAnthropic", autospec=True, return_value=mock_client
+        ):
             provider = AnthropicProvider(api_key="test-key", model="claude-3-5-sonnet-20241022")
 
             context = [

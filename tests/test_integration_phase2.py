@@ -436,7 +436,7 @@ class TestVoiceRecordingIntegration:
         # 3. 文字起こし（WhisperProviderモック）
         transcription_text = "これはテストの文字起こし結果です。"
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI") as mock_openai:
+        with patch("src.ai.transcription.whisper.AsyncOpenAI", autospec=True) as mock_openai:
             mock_client = MagicMock()
             mock_openai.return_value = mock_client
             mock_client.audio.transcriptions.create = AsyncMock(return_value=transcription_text)
@@ -464,7 +464,7 @@ class TestVoiceRecordingIntegration:
         audio_data = b"\x00" * 1000  # ダミー音声データ
         expected_text = "Whisperテストの文字起こし結果"
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI") as mock_openai:
+        with patch("src.ai.transcription.whisper.AsyncOpenAI", autospec=True) as mock_openai:
             mock_client = MagicMock()
             mock_openai.return_value = mock_client
             mock_client.audio.transcriptions.create = AsyncMock(return_value=expected_text)

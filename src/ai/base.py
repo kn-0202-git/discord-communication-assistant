@@ -17,6 +17,8 @@ Example:
 from abc import ABC, abstractmethod
 from typing import Any
 
+from src.ai.token_counter import get_token_budget, trim_context
+
 
 class AIProviderError(Exception):
     """AIプロバイダーの基底エラークラス
@@ -201,9 +203,12 @@ class AIProvider(ABC):
         Returns:
             生成されたテキスト
         """
+        token_budget = kwargs.get("token_budget", get_token_budget())
+        trimmed_context = trim_context(context, token_budget, prompt_text=prompt)
+
         # デフォルト実装: コンテキストをプロンプトに結合
-        context_text = "\n".join(f"{msg['role']}: {msg['content']}" for msg in context)
-        full_prompt = f"{context_text}\n\nuser: {prompt}" if context else prompt
+        context_text = "\n".join(f"{msg['role']}: {msg['content']}" for msg in trimmed_context)
+        full_prompt = f"{context_text}\n\nuser: {prompt}" if trimmed_context else prompt
         return await self.generate(full_prompt, **kwargs)
 
     def __repr__(self) -> str:

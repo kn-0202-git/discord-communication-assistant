@@ -2,8 +2,8 @@
 
 - レビューの目的: DEVELOPMENT_LOG.mdの肥大化によるトークン消費を抑え、参照効率を改善する
 - 内容（参照文書）:
-  - docs/DEVELOPMENT_LOG.md
-  - docs/LLM_COLLAB_LOG.md
+  - docs/logs/DEVELOPMENT_LOG.md
+  - docs/reference/LLM_COLLAB_LOG.md
   - codex_process.md
 - 日付: 2026-01-12
 - レビュー者: Codex
@@ -37,7 +37,7 @@ LLM1（レビュー者）
     - B: 先頭に「要約（最近の変更/テスト/決定事項）」を固定配置
     - C: 「詳細ログ」へのリンクインデックスを必須化
     - D: 古い期間はアーカイブへ移動し、通常参照から外す
-  - 影響範囲: docs/DEVELOPMENT_LOG.md, docs/DEVELOPMENT_LOG_PHASE{N}.md（または年次）
+- 影響範囲: docs/logs/DEVELOPMENT_LOG.md, docs/archive/logs/DEVELOPMENT_LOG_PHASE{N}.md（または年次）
 - 詳細内容:
   - 背景/問題:
     - 参照対象が大きくなり、毎回のLLM参照でトークンを消費している
@@ -67,10 +67,10 @@ LLM2（レビューされる側）
   - 対応日: 2026-01-12
   - 対応者: Claude Opus 4.5
   - 実施内容:
-    - docs/DEVELOPMENT_SUMMARY.md 新規作成（約80行）
-    - docs/DEVELOPMENT_LOG_PHASE1.md 新規作成（約1,180行）
-    - docs/DEVELOPMENT_LOG_PHASE2.md 新規作成（約680行）
-    - docs/DEVELOPMENT_LOG.md 縮小（2,074行 → 227行）
+    - docs/logs/DEVELOPMENT_SUMMARY.md 新規作成（約80行）
+    - docs/archive/logs/DEVELOPMENT_LOG_PHASE1.md 新規作成（約1,180行）
+    - docs/archive/logs/DEVELOPMENT_LOG_PHASE2.md 新規作成（約680行）
+    - docs/logs/DEVELOPMENT_LOG.md 縮小（2,074行 → 227行）
     - CLAUDE.md 参照ルール更新
   - 効果:
     - 標準参照のトークン消費: ~2,000行 → ~80行（DEVELOPMENT_SUMMARY.md）

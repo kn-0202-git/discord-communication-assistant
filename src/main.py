@@ -13,6 +13,7 @@ Features:
     - 統合Room通知
 """
 
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -132,6 +133,7 @@ def main() -> None:
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     finally:
+        asyncio.run(handler.close())
         db.close()
         logger.info("Database connection closed")
 

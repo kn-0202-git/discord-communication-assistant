@@ -35,6 +35,17 @@ class TestMessageHandler:
         """MessageHandlerを作成."""
         return MessageHandler(db=db, storage=storage)
 
+    def test_loads_max_attachment_size_from_config(
+        self, db: Database, storage: LocalStorage, tmp_path: Path
+    ) -> None:
+        """正常系: config.yamlから添付サイズ上限を読み込む."""
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text("attachments:\n  max_size_bytes: 123\n", encoding="utf-8")
+
+        handler = MessageHandler(db=db, storage=storage, config_path=config_path)
+
+        assert handler.max_attachment_size == 123
+
     def _create_message_data(
         self,
         content: str = "テストメッセージ",
@@ -161,7 +172,7 @@ class TestMessageHandler:
         )
 
         # aiohttpのモック
-        with patch("src.bot.handlers.aiohttp.ClientSession") as mock_session:
+        with patch("src.bot.handlers.aiohttp.ClientSession", autospec=True) as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.read = AsyncMock(return_value=fake_image)
@@ -185,6 +196,37 @@ class TestMessageHandler:
         # メッセージが保存されている
         assert len(messages) == 1
         assert messages[0].message_type == "image"
+
+    @pytest.mark.asyncio
+    async def test_handle_message_skips_oversized_attachment(
+        self, db: Database, storage: LocalStorage
+    ) -> None:
+        """正常系: 上限超過の添付は保存しない."""
+        handler = MessageHandler(db=db, storage=storage, max_attachment_size=1)
+
+        data = self._create_message_data(
+            attachments=[
+                {
+                    "id": 1,
+                    "filename": "too_large.bin",
+                    "url": "https://example.com/too_large.bin",
+                    "size": 2,
+                    "content_type": "application/octet-stream",
+                }
+            ],
+        )
+
+        storage.save_file = AsyncMock()  # type: ignore[assignment]
+
+        with patch("src.bot.handlers.aiohttp.ClientSession", autospec=True) as mock_session:
+            mock_session_instance = AsyncMock()
+            mock_session_instance.__aenter__.return_value = mock_session_instance
+            mock_session_instance.__aexit__.return_value = None
+            mock_session.return_value = mock_session_instance
+
+            await handler.handle_message(data)
+
+        storage.save_file.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_determine_message_type_text(self, handler: MessageHandler) -> None:
