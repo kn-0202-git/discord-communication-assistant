@@ -4,12 +4,14 @@ TEST_PLAN.md: CMD-01 ~ CMD-10
 """
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import discord
 import pytest
 
 from src.db.database import Database
+from src.storage.local import LocalStorage
 
 
 class TestDateTimeParser:
@@ -457,3 +459,114 @@ class TestTranscribeCommand:
         mock_interaction.followup.send.assert_called_once()
         call_args = mock_interaction.followup.send.call_args
         assert "サーバー内" in str(call_args)
+
+
+class TestSaveCommand:
+    """/save コマンドのテスト"""
+
+    @pytest.fixture
+    def db(self):
+        """テスト用データベース"""
+        database = Database(":memory:")
+        database.create_tables()
+        yield database
+        database.close()
+
+    @pytest.fixture
+    def storage(self, tmp_path: Path) -> LocalStorage:
+        """ローカルストレージ"""
+        return LocalStorage(base_path=tmp_path)
+
+    @pytest.fixture
+    def mock_interaction(self):
+        """モックInteraction"""
+        interaction = MagicMock(spec=discord.Interaction)
+        interaction.response = AsyncMock()
+        interaction.followup = AsyncMock()
+        interaction.guild = MagicMock(spec=discord.Guild)
+        interaction.guild.id = 123456789
+        interaction.channel = MagicMock()
+        interaction.channel.id = 987654321
+        return interaction
+
+    @pytest.fixture
+    def bot_commands(self, db, storage):
+        """BotCommandsインスタンス"""
+        from src.bot.commands import BotCommands
+
+        mock_tree = MagicMock()
+        mock_router = MagicMock()
+        drive_storage = AsyncMock()
+        drive_storage.save_file_with_folder = AsyncMock(return_value=Path("drive-id"))
+        return BotCommands(
+            mock_tree,
+            db,
+            mock_router,
+            storage=storage,
+            drive_storage=drive_storage,
+        )
+
+    @pytest.mark.asyncio
+    async def test_save_command_uploads_latest_attachment(
+        self, db: Database, storage: LocalStorage, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-19: /save で最新添付をDrive保存"""
+        workspace = db.create_workspace(name="テストサーバー", discord_server_id="123456789")
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="テストチャンネル",
+            discord_channel_id="987654321",
+            room_type="topic",
+        )
+        message = db.save_message(
+            room_id=room.id,
+            sender_name="tester",
+            sender_id="123",
+            content="file upload",
+            message_type="text",
+            discord_message_id="message-1",
+        )
+        file_path = await storage.save_file(
+            content=b"dummy",
+            workspace_id=workspace.id,
+            room_id=room.id,
+            filename="report.txt",
+        )
+        db.save_attachment(
+            message_id=message.id,
+            file_name="report.txt",
+            file_path=str(file_path),
+            file_type="document",
+            file_size=5,
+        )
+
+        await bot_commands._handle_save(mock_interaction, "client-a")
+
+        latest_attachment = db.get_latest_attachment_by_room(room.id)
+        assert latest_attachment is not None
+        assert latest_attachment.drive_path == "drive-id"
+
+        drive_storage = bot_commands._drive_storage
+        assert drive_storage is not None
+        drive_storage.save_file_with_folder.assert_awaited_once()
+
+        mock_interaction.followup.send.assert_called_once()
+        call_kwargs = mock_interaction.followup.send.call_args.kwargs
+        assert "embed" in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_save_command_without_drive_settings(
+        self, db: Database, storage: LocalStorage, mock_interaction
+    ) -> None:
+        """CMD-20: Drive未設定時の /save"""
+        from src.bot.commands import BotCommands
+
+        mock_tree = MagicMock()
+        mock_router = MagicMock()
+        commands = BotCommands(mock_tree, db, mock_router, storage=storage, drive_storage=None)
+
+        await commands._handle_save(mock_interaction, "client-a")
+
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "Google Drive" in str(call_args)

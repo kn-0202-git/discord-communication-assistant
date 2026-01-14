@@ -18,6 +18,7 @@ import logging
 import os
 from pathlib import Path
 
+import yaml
 from dotenv import load_dotenv
 
 from src.ai.router import AIRouter
@@ -27,6 +28,7 @@ from src.bot.handlers import MessageHandler
 from src.bot.listeners import MessageListener
 from src.bot.notifier import AggregationNotifier
 from src.db.database import Database
+from src.storage.google_drive import GoogleDriveStorage
 from src.storage.local import LocalStorage
 
 # ロギング設定
@@ -68,15 +70,37 @@ def main() -> None:
 
     # AIルーター初期化
     config_path = Path("config.yaml")
+    drive_storage = None
+    drive_auto_upload = False
     if config_path.exists():
         router = AIRouter.from_yaml(str(config_path))
         logger.info("AI Router initialized from config.yaml")
+
+        try:
+            with open(config_path, encoding="utf-8") as file:
+                config = yaml.safe_load(file) or {}
+        except Exception as exc:
+            logger.warning(f"Failed to read config.yaml for Google Drive settings: {exc}")
+            config = {}
+
+        drive_settings = config.get("google_drive") or {}
+        drive_auto_upload = bool(drive_settings.get("auto_upload", False))
+        drive_enabled = bool(drive_settings.get("enabled", False)) or drive_auto_upload
+        root_folder_id = drive_settings.get("root_folder_id")
+        if drive_enabled:
+            drive_storage = GoogleDriveStorage(root_folder_id=root_folder_id)
+            logger.info("Google Drive storage initialized")
     else:
         logger.warning("config.yaml not found. AI features may not work.")
         router = None
 
     # メッセージハンドラー初期化
-    handler = MessageHandler(db=db, storage=storage)
+    handler = MessageHandler(
+        db=db,
+        storage=storage,
+        drive_storage=drive_storage,
+        drive_auto_upload=drive_auto_upload,
+    )
 
     # Bot初期化
     async def on_ready() -> None:
@@ -85,7 +109,13 @@ def main() -> None:
 
         # スラッシュコマンドを登録
         if router:
-            tree = await setup_commands(client, db, router)
+            tree = await setup_commands(
+                client,
+                db,
+                router,
+                storage=storage,
+                drive_storage=drive_storage,
+            )
             logger.info("Slash commands registered: /summary, /search")
 
             # コマンドを同期

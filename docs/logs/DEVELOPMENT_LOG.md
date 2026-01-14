@@ -97,6 +97,30 @@
 
 - #33（/transcribe）またはG1/G4以降の残タスクに着手
 
+## 2026-01-12: Issues #27-29 Google Drive連携（OAuth・/save・自動アップロード）
+
+### 目標
+
+Google Drive連携の残タスク（OAuth設定、/saveコマンド、自動アップロード）を実装する。
+
+### 実施内容
+
+- GoogleDriveStorageにOAuthリフレッシュ対応と任意フォルダ保存を追加
+- config.yamlにDrive設定を追加し、起動時にDrive設定を読み込み
+- /saveコマンドで最新添付をDriveへ保存し、drive_pathを更新
+- 自動アップロード時にDriveへ保存し、DBにdrive_pathを記録
+- セットアップガイド（Google Drive OAuth）を追加
+- ハンドラとコマンドのテストを追加
+
+### テスト結果
+
+- コマンド: 未実施
+- 結果: -
+
+### 次のステップ
+
+- Step 5（クラウド移行）に着手
+
 ## 2026-01-12: Issue #26 GoogleDriveStorage実装
 
 ### 目標

@@ -97,6 +97,18 @@ class Database:
         stmt = select(Workspace).where(Workspace.discord_server_id == discord_server_id)
         return self.session.execute(stmt).scalar_one_or_none()
 
+    def get_workspace_by_id(self, workspace_id: int) -> Workspace | None:
+        """Get workspace by ID.
+
+        Args:
+            workspace_id: Workspace ID.
+
+        Returns:
+            Workspace object or None.
+        """
+        stmt = select(Workspace).where(Workspace.id == workspace_id)
+        return self.session.execute(stmt).scalar_one_or_none()
+
     # Room operations
 
     def create_room(
@@ -354,6 +366,37 @@ class Database:
         self.session.commit()
         self.session.refresh(attachment)
         return attachment
+
+    def get_latest_attachment_by_room(self, room_id: int) -> Attachment | None:
+        """Get latest attachment in a room.
+
+        Args:
+            room_id: Room ID.
+
+        Returns:
+            Latest Attachment or None.
+        """
+        stmt = (
+            select(Attachment)
+            .join(Message, Attachment.message_id == Message.id)
+            .where(Message.room_id == room_id)
+            .order_by(Message.timestamp.desc(), Attachment.id.desc())
+            .limit(1)
+        )
+        return self.session.execute(stmt).scalar_one_or_none()
+
+    def update_attachment_drive_path(self, attachment_id: int, drive_path: str) -> None:
+        """Update drive_path for an attachment.
+
+        Args:
+            attachment_id: Attachment ID.
+            drive_path: Google Drive file ID or path.
+        """
+        attachment = self.session.get(Attachment, attachment_id)
+        if not attachment:
+            return
+        attachment.drive_path = drive_path
+        self.session.commit()
 
     # Reminder operations
 

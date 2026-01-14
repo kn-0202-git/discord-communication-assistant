@@ -198,6 +198,58 @@ class TestMessageHandler:
         assert messages[0].message_type == "image"
 
     @pytest.mark.asyncio
+    async def test_handle_message_auto_uploads_to_drive(
+        self, db: Database, storage: LocalStorage
+    ) -> None:
+        """正常系: Drive自動アップロード時にdrive_pathが保存される."""
+        fake_image = b"\x89PNG\r\n\x1a\n" + b"\x00" * 10
+        data = self._create_message_data(
+            attachments=[
+                {
+                    "id": 1,
+                    "filename": "photo.png",
+                    "url": "https://example.com/photo.png",
+                    "size": 18,
+                    "content_type": "image/png",
+                }
+            ],
+        )
+
+        drive_storage = AsyncMock()
+        drive_storage.save_file_with_folder = AsyncMock(return_value=Path("drive-id"))
+        drive_storage.close = AsyncMock()
+        handler = MessageHandler(
+            db=db,
+            storage=storage,
+            drive_storage=drive_storage,
+            drive_auto_upload=True,
+        )
+
+        with patch("src.bot.handlers.aiohttp.ClientSession", autospec=True) as mock_session:
+            mock_response = AsyncMock()
+            mock_response.status = 200
+            mock_response.read = AsyncMock(return_value=fake_image)
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__.return_value = mock_response
+            mock_context.__aexit__.return_value = None
+
+            mock_session_instance = AsyncMock()
+            mock_session_instance.get.return_value = mock_context
+            mock_session_instance.__aenter__.return_value = mock_session_instance
+            mock_session_instance.__aexit__.return_value = None
+
+            mock_session.return_value = mock_session_instance
+
+            await handler.handle_message(data)
+
+        room = db.get_room_by_discord_id("789")
+        attachment = db.get_latest_attachment_by_room(room.id)
+        assert attachment is not None
+        assert attachment.drive_path == "drive-id"
+        drive_storage.save_file_with_folder.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_handle_message_skips_oversized_attachment(
         self, db: Database, storage: LocalStorage
     ) -> None:

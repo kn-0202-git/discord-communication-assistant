@@ -28,6 +28,8 @@ import discord
 from discord import app_commands
 
 from src.ai.transcription.whisper import WhisperProvider
+from src.storage.base import StorageProvider
+from src.storage.google_drive import GoogleDriveStorage
 
 if TYPE_CHECKING:
     from src.ai.router import AIRouter
@@ -100,6 +102,8 @@ class BotCommands:
         _db: Database インスタンス
         _router: AIRouter インスタンス
         _voice_recorder: VoiceRecorder インスタンス（オプション）
+        _storage: StorageProvider インスタンス（オプション）
+        _drive_storage: GoogleDriveStorage インスタンス（オプション）
     """
 
     # 検索結果の最大表示件数
@@ -111,6 +115,9 @@ class BotCommands:
         db: "Database",
         router: "AIRouter",
         voice_recorder: "VoiceRecorder | None" = None,
+        *,
+        storage: StorageProvider | None = None,
+        drive_storage: GoogleDriveStorage | None = None,
     ) -> None:
         """BotCommandsを初期化
 
@@ -118,12 +125,16 @@ class BotCommands:
             tree: discord.py CommandTree
             db: Database インスタンス
             router: AIRouter インスタンス
+            storage: StorageProvider インスタンス（オプション）
+            drive_storage: GoogleDriveStorage インスタンス（オプション）
             voice_recorder: VoiceRecorder インスタンス（オプション）
         """
         self._tree = tree
         self._db = db
         self._router = router
         self._voice_recorder = voice_recorder
+        self._storage = storage
+        self._drive_storage = drive_storage
         self._register_commands()
 
     def _register_commands(self) -> None:
@@ -134,6 +145,22 @@ class BotCommands:
         self._register_reminders_command()
         self._register_record_command()
         self._register_transcribe_command()
+        self._register_save_command()
+
+    def _register_save_command(self) -> None:
+        """/save コマンドを登録"""
+
+        @self._tree.command(
+            name="save",
+            description="最新の添付ファイルをGoogle Driveに保存します",
+        )
+        @app_commands.describe(folder="保存先フォルダ（例: client-a/design）")
+        async def save_command(
+            interaction: discord.Interaction,
+            folder: str | None = None,
+        ) -> None:
+            """添付ファイルをGoogle Driveに保存するコマンド"""
+            await self._handle_save(interaction, folder)
 
     def _register_summary_command(self) -> None:
         """/summary コマンドを登録"""
@@ -755,6 +782,112 @@ class BotCommands:
         except Exception as e:
             await interaction.followup.send(f"エラーが発生しました: {e}")
 
+    async def _handle_save(
+        self,
+        interaction: discord.Interaction,
+        folder: str | None,
+    ) -> None:
+        """/save コマンドのハンドラ
+
+        Args:
+            interaction: Discord Interaction
+            folder: 保存先フォルダ（任意）
+        """
+        await interaction.response.defer(thinking=True)
+
+        try:
+            if self._drive_storage is None:
+                await interaction.followup.send(
+                    "Google Drive連携が設定されていません。設定を確認してください。"
+                )
+                return
+            if self._storage is None:
+                await interaction.followup.send(
+                    "ストレージ設定が不足しています。Bot管理者に確認してください。"
+                )
+                return
+
+            guild = interaction.guild
+            channel = interaction.channel
+
+            if not guild or not channel:
+                await interaction.followup.send(
+                    "このコマンドはサーバー内のチャンネルでのみ使用できます。"
+                )
+                return
+
+            workspace = self._db.get_workspace_by_discord_id(str(guild.id))
+            if not workspace:
+                await interaction.followup.send("このサーバーは登録されていません。")
+                return
+
+            room = self._db.get_room_by_discord_id(str(channel.id))
+            if not room:
+                await interaction.followup.send(
+                    "このチャンネルは登録されていません。メッセージ送信後に再度実行してください。"
+                )
+                return
+
+            attachment = self._db.get_latest_attachment_by_room(room.id)
+            if not attachment:
+                await interaction.followup.send("保存対象の添付ファイルが見つかりませんでした。")
+                return
+
+            if attachment.drive_path:
+                await interaction.followup.send("この添付ファイルは既にDriveへ保存済みです。")
+                return
+
+            try:
+                content = await self._storage.get_file(Path(attachment.file_path))
+            except FileNotFoundError:
+                await interaction.followup.send(
+                    "ローカルファイルが見つかりませんでした。再アップロードしてください。"
+                )
+                return
+
+            folder_parts = self._build_drive_folder_parts(workspace.name, folder)
+            drive_file_path = await self._drive_storage.save_file_with_folder(
+                content=content,
+                filename=attachment.file_name,
+                folder_parts=folder_parts,
+            )
+            self._db.update_attachment_drive_path(attachment.id, str(drive_file_path))
+
+            description = "\n".join(
+                [
+                    f"ファイル: {attachment.file_name}",
+                    f"保存先: {'/'.join(folder_parts)}",
+                    f"Drive ID: {drive_file_path}",
+                ]
+            )
+            embed = discord.Embed(
+                title="Google Driveに保存しました",
+                description=description,
+                color=discord.Color.green(),
+                timestamp=datetime.now(UTC),
+            )
+            await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            await interaction.followup.send(f"エラーが発生しました: {e}")
+
+    @staticmethod
+    def _split_folder_parts(folder: str) -> list[str]:
+        cleaned: list[str] = []
+        for part in folder.replace("\\", "/").split("/"):
+            part = part.strip()
+            if not part or part in (".", ".."):
+                continue
+            cleaned.append(part)
+        return cleaned
+
+    def _build_drive_folder_parts(self, workspace_name: str, folder: str | None) -> list[str]:
+        date_str = datetime.now(UTC).strftime("%Y-%m-%d")
+        parts = [workspace_name, date_str]
+        if folder:
+            parts.extend(self._split_folder_parts(folder))
+        return parts
+
 
 # Workspace型をインポート（循環参照回避のため遅延インポート）
 if TYPE_CHECKING:
@@ -770,6 +903,9 @@ async def setup_commands(
     db: "Database",
     router: "AIRouter",
     voice_recorder: "VoiceRecorder | None" = None,
+    *,
+    storage: StorageProvider | None = None,
+    drive_storage: GoogleDriveStorage | None = None,
 ) -> app_commands.CommandTree:
     """コマンドをセットアップ
 
@@ -777,11 +913,20 @@ async def setup_commands(
         client: Discord Client
         db: Database インスタンス
         router: AIRouter インスタンス
+        storage: StorageProvider インスタンス（オプション）
+        drive_storage: GoogleDriveStorage インスタンス（オプション）
         voice_recorder: VoiceRecorder インスタンス（オプション）
 
     Returns:
         設定済みの CommandTree
     """
     tree = app_commands.CommandTree(client)
-    BotCommands(tree, db, router, voice_recorder)
+    BotCommands(
+        tree,
+        db,
+        router,
+        voice_recorder,
+        storage=storage,
+        drive_storage=drive_storage,
+    )
     return tree

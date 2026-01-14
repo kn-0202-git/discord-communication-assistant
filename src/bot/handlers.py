@@ -4,6 +4,7 @@
 """
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,8 @@ import yaml
 from src.bot.listeners import MessageData
 from src.db.database import Database
 from src.db.models import Room
-from src.storage.local import LocalStorage
+from src.storage.base import StorageProvider
+from src.storage.google_drive import GoogleDriveStorage
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +30,10 @@ class MessageHandler:
 
     Attributes:
         db: Databaseインスタンス
-        storage: LocalStorageインスタンス
+        storage: StorageProviderインスタンス
         max_attachment_size: 添付ファイルの最大サイズ（バイト）
         session: 共有aiohttpセッション
+        drive_storage: Google Driveストレージ（オプション）
 
     Example:
         >>> db = Database()
@@ -45,26 +48,37 @@ class MessageHandler:
     def __init__(
         self,
         db: Database,
-        storage: LocalStorage,
+        storage: StorageProvider,
         max_attachment_size: int | None = None,
         config_path: Path | None = None,
         session: aiohttp.ClientSession | None = None,
+        drive_storage: GoogleDriveStorage | None = None,
+        drive_auto_upload: bool | None = None,
     ) -> None:
         """MessageHandlerを初期化する.
 
         Args:
             db: Databaseインスタンス
-            storage: LocalStorageインスタンス
+            storage: StorageProviderインスタンス
             max_attachment_size: 添付ファイル最大サイズ（バイト）。指定時は設定値を優先
             config_path: 設定ファイルのパス（既定: config.yaml）
             session: 共有aiohttpセッション（指定時はそれを利用）
+            drive_storage: Google Driveストレージ（指定時は自動アップロードに利用）
+            drive_auto_upload: 自動アップロード設定（指定時は設定値を優先）
         """
         self.db = db
         self.storage = storage
+        config_path = config_path or Path("config.yaml")
         self.max_attachment_size = max_attachment_size or self._load_max_attachment_size(
-            config_path or Path("config.yaml")
+            config_path
         )
         self._session = session
+        self.drive_storage = drive_storage
+        self.drive_auto_upload = (
+            drive_auto_upload
+            if drive_auto_upload is not None
+            else self._load_drive_auto_upload(config_path)
+        )
 
     async def _ensure_session(self) -> aiohttp.ClientSession:
         """共有セッションを確保する."""
@@ -76,6 +90,8 @@ class MessageHandler:
         """保持しているセッションを閉じる."""
         if self._session and not self._session.closed:
             await self._session.close()
+        if self.drive_storage:
+            await self.drive_storage.close()
 
     @classmethod
     def _load_max_attachment_size(cls, config_path: Path) -> int:
@@ -96,6 +112,22 @@ class MessageHandler:
             return value
 
         return cls.DEFAULT_MAX_ATTACHMENT_SIZE
+
+    @staticmethod
+    def _load_drive_auto_upload(config_path: Path) -> bool:
+        """設定ファイルからGoogle Drive自動アップロード設定を取得する."""
+        if not config_path.exists():
+            return False
+
+        try:
+            with open(config_path, encoding="utf-8") as file:
+                config = yaml.safe_load(file) or {}
+        except Exception as exc:  # pragma: no cover - 設定読込失敗時は既定値
+            logger.warning(f"Failed to read config.yaml: {exc}")
+            return False
+
+        drive_settings = config.get("google_drive") or {}
+        return bool(drive_settings.get("auto_upload", False))
 
     async def handle_message(self, data: MessageData) -> None:
         """メッセージを処理してDB/ストレージに保存する.
@@ -255,6 +287,19 @@ class MessageHandler:
                     filename=att["filename"],
                 )
 
+                drive_path = None
+                if self.drive_storage and self.drive_auto_upload:
+                    try:
+                        drive_folder_parts = self._build_drive_folder_parts(workspace_id)
+                        drive_file_path = await self.drive_storage.save_file_with_folder(
+                            content=content,
+                            filename=att["filename"],
+                            folder_parts=drive_folder_parts,
+                        )
+                        drive_path = str(drive_file_path)
+                    except Exception as exc:
+                        logger.warning(f"Failed to upload {att['filename']} to Google Drive: {exc}")
+
                 # ファイルタイプを判定
                 file_type = self._get_file_type(att.get("content_type") or "")
 
@@ -265,6 +310,7 @@ class MessageHandler:
                     file_path=str(file_path),
                     file_type=file_type,
                     file_size=att["size"],
+                    drive_path=drive_path,
                 )
 
                 logger.info(f"Saved attachment: {att['filename']}")
@@ -288,3 +334,10 @@ class MessageHandler:
         elif content_type.startswith("audio/"):
             return "voice"
         return "document"
+
+    def _build_drive_folder_parts(self, workspace_id: int) -> list[str]:
+        """Google Driveの保存フォルダ構成を生成する."""
+        workspace = self.db.get_workspace_by_id(workspace_id)
+        workspace_name = workspace.name if workspace else f"workspace-{workspace_id}"
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        return [workspace_name, date_str]

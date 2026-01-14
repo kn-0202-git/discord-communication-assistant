@@ -25,6 +25,7 @@
 - specs/ARCHITECTURE.md
 - specs/VISION.md
 - guides/SETUP.md
+- guides/GOOGLE_DRIVE_SETUP.md
 - guides/USER_GUIDE.md
 - planning/ROADMAP.md
 - logs/DEVELOPMENT_LOG.md

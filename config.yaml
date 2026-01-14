@@ -124,6 +124,11 @@ ai_fallback:
 attachments:
   max_size_bytes: 26214400
 
+google_drive:
+  enabled: false
+  auto_upload: false
+  root_folder_id: ${GOOGLE_DRIVE_ROOT_FOLDER_ID}
+
 rate_limits:
   discord:
     requests_per_second: 50
