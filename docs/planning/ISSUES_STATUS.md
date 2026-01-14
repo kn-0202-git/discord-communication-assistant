@@ -125,7 +125,7 @@
 | #30 | VoiceSession実装 | 高 | 🟢 完了 | テーブル・CRUD完了（7テスト） |
 | #31 | 通話録音機能 | 高 | 🟢 完了 | /record コマンド・VoiceRecorder実装（16テスト） |
 | #32 | Whisperプロバイダー | 高 | 🟢 完了 | TranscriptionProvider・WhisperProvider（11テスト） |
-| #33 | /transcribe実装 | 高 | 🔴 未対応 | 文字起こし結果表示 |
+| #33 | /transcribe実装 | 高 | 🟢 完了 | 文字起こし結果表示 |
 
 ### Step 5.5: Geminiレビュー対応（並行）
 
