@@ -26,6 +26,7 @@ from src.ai.base import (
     AIQuotaExceededError,
     AIResponseError,
 )
+from src.ai.token_counter import get_token_budget, trim_context
 
 
 class AnthropicProvider(AIProvider):
@@ -93,7 +94,6 @@ class AnthropicProvider(AIProvider):
         temperature = kwargs.get("temperature", self.DEFAULT_TEMPERATURE)
         max_tokens = kwargs.get("max_tokens", self.DEFAULT_MAX_TOKENS)
         system_prompt = kwargs.get("system_prompt")
-
         try:
             message = await self._client.messages.create(
                 model=self._model,
@@ -154,10 +154,17 @@ class AnthropicProvider(AIProvider):
         temperature = kwargs.get("temperature", self.DEFAULT_TEMPERATURE)
         max_tokens = kwargs.get("max_tokens", self.DEFAULT_MAX_TOKENS)
         system_prompt = kwargs.get("system_prompt")
+        token_budget = kwargs.get("token_budget", get_token_budget())
+        trimmed_context = trim_context(
+            context,
+            token_budget,
+            prompt_text=prompt,
+            system_prompt=system_prompt or "",
+        )
 
         # メッセージを構築
         messages = []
-        for msg in context:
+        for msg in trimmed_context:
             messages.append({"role": msg["role"], "content": msg["content"]})
         messages.append({"role": "user", "content": prompt})
 

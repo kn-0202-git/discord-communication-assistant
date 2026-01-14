@@ -34,6 +34,7 @@ from src.ai.base import (
     AIQuotaExceededError,
     AIResponseError,
 )
+from src.ai.token_counter import get_token_budget, trim_context
 
 
 class OpenAIProvider(AIProvider):
@@ -193,14 +194,23 @@ class OpenAIProvider(AIProvider):
         Returns:
             生成されたテキスト
         """
+        token_budget = kwargs.get("token_budget", get_token_budget())
+        system_prompt = kwargs.get("system_prompt")
+        trimmed_context = trim_context(
+            context,
+            token_budget,
+            prompt_text=prompt,
+            system_prompt=system_prompt or "",
+        )
+
         messages: list[ChatCompletionMessageParam] = []
 
         # システムプロンプトがあれば追加
-        if "system_prompt" in kwargs:
-            messages.append({"role": "system", "content": kwargs["system_prompt"]})
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
 
         # コンテキストを追加（contextの各要素をChatCompletionMessageParamとして追加）
-        for msg in context:
+        for msg in trimmed_context:
             messages.append({"role": msg["role"], "content": msg["content"]})  # type: ignore[typeddict-item]
 
         # 現在のユーザープロンプトを追加

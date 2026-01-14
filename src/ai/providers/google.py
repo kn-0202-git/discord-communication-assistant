@@ -22,6 +22,7 @@ from src.ai.base import (
     AIQuotaExceededError,
     AIResponseError,
 )
+from src.ai.token_counter import get_token_budget, trim_context
 
 
 class GoogleProvider(AIProvider):
@@ -168,8 +169,11 @@ class GoogleProvider(AIProvider):
         Returns:
             生成されたテキスト
         """
+        token_budget = kwargs.get("token_budget", get_token_budget())
+        trimmed_context = trim_context(context, token_budget, prompt_text=prompt)
+
         # コンテキストをプロンプトに結合
-        context_text = "\n".join(f"{msg['role']}: {msg['content']}" for msg in context)
-        full_prompt = f"{context_text}\n\nuser: {prompt}" if context else prompt
+        context_text = "\n".join(f"{msg['role']}: {msg['content']}" for msg in trimmed_context)
+        full_prompt = f"{context_text}\n\nuser: {prompt}" if trimmed_context else prompt
 
         return await self.generate(full_prompt, **kwargs)

@@ -132,7 +132,7 @@
 | Issue | 課題 | 優先度 | status | 備考 |
 |-------|------|--------|--------|------|
 | G1 | MAX_ATTACHMENT_SIZEのconfig化 | 高 | 🟢 完了 | config.yaml反映 + テスト更新 |
-| G2 | TokenCounter導入 | 高 | 🔴 未対応 | docs/specs/TOKEN_COUNTER.md作成 + 長文トリム確認 |
+| G2 | TokenCounter導入 | 高 | 🟢 完了 | docs/specs/TOKEN_COUNTER.md作成 + 長文トリム確認 |
 | G3 | MagicMock autospec化 | 高 | 🔴 未対応 | 主要テストのautospec化完了 |
 | G4 | 共有aiohttpセッション導入 | 高 | 🟢 完了 | セッション再利用の確認 |
 

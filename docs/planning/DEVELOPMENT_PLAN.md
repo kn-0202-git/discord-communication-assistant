@@ -228,7 +228,7 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 |-------|--------|----------|------|
 | G1 | MAX_ATTACHMENT_SIZEのconfig化 | config.yaml反映 + テスト更新 | ✅完了 |
 | G4 | 共有aiohttpセッション導入 | セッション再利用の確認 | ✅完了 |
-| G2 | TokenCounter導入 | docs/specs/TOKEN_COUNTER.md作成 + 長文トリム確認 | 未着手 |
+| G2 | TokenCounter導入 | docs/specs/TOKEN_COUNTER.md作成 + 長文トリム確認 | ✅完了 |
 | G3 | MagicMock autospec化 | 主要テストのautospec化完了 | 未着手 |
 | G8 | AIRouterテスト分割 | 選択ロジックの単体テスト追加 | 未着手 |
 | G6 | main.py初期化のファクトリ化 | エントリ分離とテスト容易性 | 未着手 |

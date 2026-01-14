@@ -55,6 +55,28 @@
 
 - G2（TokenCounter導入）に着手
 
+## 2026-01-12: G2 TokenCounter導入
+
+### 目標
+
+コンテキストの長文化による失敗を避けるため、簡易トリムを導入する。
+
+### 実施内容
+
+- TokenCounterユーティリティを追加（概算トークン/トリム）
+- generate_with_contextにトリムを追加（base/各プロバイダー）
+- config.yamlにai.token_budgetを追加
+- ユニットテストを追加
+
+### テスト結果
+
+- コマンド: 未実施
+- 結果: -
+
+### 次のステップ
+
+- G3（autospec化）に着手
+
 ## 2026-01-11: Issue #32 Whisperプロバイダー実装
 
 ### 目標

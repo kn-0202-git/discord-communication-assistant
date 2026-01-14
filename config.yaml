@@ -6,6 +6,9 @@
 # AI Providers
 # APIキーは環境変数から取得（${VAR_NAME}形式）
 # -----------------------------------------------------------------------------
+ai:
+  token_budget: 6000
+
 ai_providers:
   openai:
     api_key: ${OPENAI_API_KEY}
