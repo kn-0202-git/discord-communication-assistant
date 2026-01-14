@@ -4,9 +4,11 @@
 """
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import aiohttp
+import yaml
 
 from src.bot.listeners import MessageData
 from src.db.database import Database
@@ -27,7 +29,7 @@ class MessageHandler:
     Attributes:
         db: Databaseインスタンス
         storage: LocalStorageインスタンス
-        MAX_ATTACHMENT_SIZE: 添付ファイルの最大サイズ（バイト）
+        max_attachment_size: 添付ファイルの最大サイズ（バイト）
 
     Example:
         >>> db = Database()
@@ -37,21 +39,48 @@ class MessageHandler:
     """
 
     # 添付ファイルの最大サイズ（25MB = Discord無料プランの上限）
-    MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024
+    DEFAULT_MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024
 
     def __init__(
         self,
         db: Database,
         storage: LocalStorage,
+        max_attachment_size: int | None = None,
+        config_path: Path | None = None,
     ) -> None:
         """MessageHandlerを初期化する.
 
         Args:
             db: Databaseインスタンス
             storage: LocalStorageインスタンス
+            max_attachment_size: 添付ファイル最大サイズ（バイト）。指定時は設定値を優先
+            config_path: 設定ファイルのパス（既定: config.yaml）
         """
         self.db = db
         self.storage = storage
+        self.max_attachment_size = max_attachment_size or self._load_max_attachment_size(
+            config_path or Path("config.yaml")
+        )
+
+    @classmethod
+    def _load_max_attachment_size(cls, config_path: Path) -> int:
+        """設定ファイルから添付ファイル最大サイズを取得する."""
+        if not config_path.exists():
+            return cls.DEFAULT_MAX_ATTACHMENT_SIZE
+
+        try:
+            with open(config_path, encoding="utf-8") as file:
+                config = yaml.safe_load(file) or {}
+        except Exception as exc:  # pragma: no cover - 設定読込失敗時は既定値
+            logger.warning(f"Failed to read config.yaml: {exc}")
+            return cls.DEFAULT_MAX_ATTACHMENT_SIZE
+
+        attachments = config.get("attachments") or {}
+        value = attachments.get("max_size_bytes")
+        if isinstance(value, int) and value > 0:
+            return value
+
+        return cls.DEFAULT_MAX_ATTACHMENT_SIZE
 
     async def handle_message(self, data: MessageData) -> None:
         """メッセージを処理してDB/ストレージに保存する.
@@ -177,10 +206,10 @@ class MessageHandler:
                 try:
                     # サイズチェック（DoS対策）
                     file_size = att.get("size", 0)
-                    if file_size > self.MAX_ATTACHMENT_SIZE:
+                    if file_size > self.max_attachment_size:
                         logger.warning(
                             f"Skipping {att['filename']}: size {file_size} exceeds "
-                            f"limit {self.MAX_ATTACHMENT_SIZE}"
+                            f"limit {self.max_attachment_size}"
                         )
                         continue
 
@@ -195,7 +224,7 @@ class MessageHandler:
 
                         # Content-Lengthでも再チェック
                         content_length = response.headers.get("Content-Length")
-                        if content_length and int(content_length) > self.MAX_ATTACHMENT_SIZE:
+                        if content_length and int(content_length) > self.max_attachment_size:
                             logger.warning(
                                 f"Skipping {att['filename']}: Content-Length "
                                 f"{content_length} exceeds limit"

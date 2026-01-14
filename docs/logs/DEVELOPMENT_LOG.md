@@ -13,6 +13,27 @@
 
 ---
 
+## 2026-01-12: G1 MAX_ATTACHMENT_SIZEのconfig化
+
+### 目標
+
+添付ファイル上限をconfig.yamlに移し、テストで確認できるようにする。
+
+### 実施内容
+
+- config.yamlにattachments.max_size_bytesを追加
+- MessageHandlerで設定値を読み込み、上限値を可変化
+- 上限超過時の挙動をテスト追加
+
+### テスト結果
+
+- コマンド: 未実施
+- 結果: -
+
+### 次のステップ
+
+- G4（aiohttp共有）に着手
+
 ## 2026-01-11: Issue #32 Whisperプロバイダー実装
 
 ### 目標

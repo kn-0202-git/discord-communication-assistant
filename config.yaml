@@ -118,6 +118,9 @@ ai_fallback:
 # Rate Limiting
 # レート制限設定
 # -----------------------------------------------------------------------------
+attachments:
+  max_size_bytes: 26214400
+
 rate_limits:
   discord:
     requests_per_second: 50
