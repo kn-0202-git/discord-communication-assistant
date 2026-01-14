@@ -35,7 +35,9 @@ class TestOpenAIProvider:
         """OpenAIProviderインスタンス"""
         from src.ai.providers.openai import OpenAIProvider
 
-        with patch("src.ai.providers.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI", autospec=True, return_value=mock_openai_client
+        ):
             return OpenAIProvider(
                 api_key="test-api-key",
                 model="gpt-4o-mini",
@@ -52,7 +54,9 @@ class TestOpenAIProvider:
         mock_response.choices = [MagicMock(message=MagicMock(content="Generated text response"))]
         mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI", autospec=True, return_value=mock_openai_client
+        ):
             provider = OpenAIProvider(api_key="test-key", model="gpt-4o-mini")
             result = await provider.generate("Hello, how are you?")
 
@@ -72,7 +76,9 @@ class TestOpenAIProvider:
         mock_response.data = [MagicMock(embedding=expected_embedding)]
         mock_openai_client.embeddings.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI", autospec=True, return_value=mock_openai_client
+        ):
             provider = OpenAIProvider(
                 api_key="test-key",
                 model="gpt-4o-mini",
@@ -93,7 +99,9 @@ class TestOpenAIProvider:
         mock_response.choices = [MagicMock(message=MagicMock(content="Creative response"))]
         mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI", autospec=True, return_value=mock_openai_client
+        ):
             provider = OpenAIProvider(api_key="test-key", model="gpt-4o-mini")
             result = await provider.generate(
                 "Write a poem",
@@ -121,7 +129,9 @@ class TestOpenAIProvider:
             side_effect=APIConnectionError(request=MagicMock())
         )
 
-        with patch("src.ai.providers.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI", autospec=True, return_value=mock_openai_client
+        ):
             provider = OpenAIProvider(api_key="test-key", model="gpt-4o-mini")
 
             with pytest.raises(AIConnectionError) as exc_info:
@@ -147,7 +157,9 @@ class TestOpenAIProvider:
             )
         )
 
-        with patch("src.ai.providers.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI", autospec=True, return_value=mock_openai_client
+        ):
             provider = OpenAIProvider(api_key="test-key", model="gpt-4o-mini")
 
             with pytest.raises(AIQuotaExceededError) as exc_info:
@@ -173,7 +185,9 @@ class TestOpenAIProvider:
             )
         )
 
-        with patch("src.ai.providers.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI", autospec=True, return_value=mock_openai_client
+        ):
             provider = OpenAIProvider(api_key="invalid-key", model="gpt-4o-mini")
 
             with pytest.raises(AIProviderError) as exc_info:
@@ -189,7 +203,10 @@ class TestOpenAIProviderProperties:
         """プロバイダー名が正しく返される"""
         from src.ai.providers.openai import OpenAIProvider
 
-        with patch("src.ai.providers.openai.AsyncOpenAI"):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI",
+            autospec=True,
+        ):
             provider = OpenAIProvider(api_key="test-key", model="gpt-4o-mini")
 
         assert provider.name == "openai"
@@ -198,7 +215,10 @@ class TestOpenAIProviderProperties:
         """モデル名が正しく返される"""
         from src.ai.providers.openai import OpenAIProvider
 
-        with patch("src.ai.providers.openai.AsyncOpenAI"):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI",
+            autospec=True,
+        ):
             provider = OpenAIProvider(api_key="test-key", model="gpt-4o")
 
         assert provider.model == "gpt-4o"
@@ -207,7 +227,10 @@ class TestOpenAIProviderProperties:
         """__repr__が正しく動作する"""
         from src.ai.providers.openai import OpenAIProvider
 
-        with patch("src.ai.providers.openai.AsyncOpenAI"):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI",
+            autospec=True,
+        ):
             provider = OpenAIProvider(api_key="test-key", model="gpt-4o-mini")
 
         repr_str = repr(provider)
@@ -229,7 +252,11 @@ class TestOpenAIProviderContextGeneration:
         mock_response.choices = [MagicMock(message=MagicMock(content="Context-aware response"))]
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.openai.AsyncOpenAI", return_value=mock_client):
+        with patch(
+            "src.ai.providers.openai.AsyncOpenAI",
+            autospec=True,
+            return_value=mock_client,
+        ):
             provider = OpenAIProvider(api_key="test-key", model="gpt-4o-mini")
 
             context = [

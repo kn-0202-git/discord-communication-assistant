@@ -310,7 +310,7 @@ class TestTranscriptionErrorHandling:
 
         audio_data = b"\x00" * 1000
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI") as mock_openai:
+        with patch("src.ai.transcription.whisper.AsyncOpenAI", autospec=True) as mock_openai:
             mock_client = MagicMock()
             mock_openai.return_value = mock_client
             mock_client.audio.transcriptions.create = AsyncMock(
@@ -343,7 +343,7 @@ class TestTranscriptionErrorHandling:
 
         empty_audio = b""  # 空のデータ
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI") as mock_openai:
+        with patch("src.ai.transcription.whisper.AsyncOpenAI", autospec=True) as mock_openai:
             from src.ai.transcription.whisper import WhisperProvider
 
             mock_openai.return_value = MagicMock()

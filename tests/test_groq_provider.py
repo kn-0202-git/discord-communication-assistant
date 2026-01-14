@@ -35,7 +35,11 @@ class TestGroqProvider:
         """GroqProviderインスタンス"""
         from src.ai.providers.groq import GroqProvider
 
-        with patch("src.ai.providers.groq.AsyncGroq", return_value=mock_groq_client):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+            return_value=mock_groq_client,
+        ):
             return GroqProvider(
                 api_key="test-api-key",
                 model="llama-3.1-70b-versatile",
@@ -52,7 +56,11 @@ class TestGroqProvider:
         mock_response.choices = [MagicMock(message=MagicMock(content="Generated text response"))]
         mock_groq_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.groq.AsyncGroq", return_value=mock_groq_client):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+            return_value=mock_groq_client,
+        ):
             provider = GroqProvider(api_key="test-key", model="llama-3.1-70b-versatile")
             result = await provider.generate("Hello, how are you?")
 
@@ -65,7 +73,11 @@ class TestGroqProvider:
         """埋め込みがサポートされていないことを確認"""
         from src.ai.providers.groq import GroqProvider
 
-        with patch("src.ai.providers.groq.AsyncGroq", return_value=mock_groq_client):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+            return_value=mock_groq_client,
+        ):
             provider = GroqProvider(api_key="test-key", model="llama-3.1-70b-versatile")
 
             with pytest.raises(AIProviderError) as exc_info:
@@ -83,7 +95,11 @@ class TestGroqProvider:
         mock_response.choices = [MagicMock(message=MagicMock(content="Creative response"))]
         mock_groq_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.groq.AsyncGroq", return_value=mock_groq_client):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+            return_value=mock_groq_client,
+        ):
             provider = GroqProvider(api_key="test-key", model="llama-3.1-70b-versatile")
             result = await provider.generate(
                 "Write a poem",
@@ -111,7 +127,11 @@ class TestGroqProvider:
             side_effect=APIConnectionError(request=MagicMock())
         )
 
-        with patch("src.ai.providers.groq.AsyncGroq", return_value=mock_groq_client):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+            return_value=mock_groq_client,
+        ):
             provider = GroqProvider(api_key="test-key", model="llama-3.1-70b-versatile")
 
             with pytest.raises(AIConnectionError) as exc_info:
@@ -137,7 +157,11 @@ class TestGroqProvider:
             )
         )
 
-        with patch("src.ai.providers.groq.AsyncGroq", return_value=mock_groq_client):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+            return_value=mock_groq_client,
+        ):
             provider = GroqProvider(api_key="test-key", model="llama-3.1-70b-versatile")
 
             with pytest.raises(AIQuotaExceededError) as exc_info:
@@ -163,7 +187,11 @@ class TestGroqProvider:
             )
         )
 
-        with patch("src.ai.providers.groq.AsyncGroq", return_value=mock_groq_client):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+            return_value=mock_groq_client,
+        ):
             provider = GroqProvider(api_key="invalid-key", model="llama-3.1-70b-versatile")
 
             with pytest.raises(AIProviderError) as exc_info:
@@ -179,7 +207,10 @@ class TestGroqProviderProperties:
         """プロバイダー名が正しく返される"""
         from src.ai.providers.groq import GroqProvider
 
-        with patch("src.ai.providers.groq.AsyncGroq"):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+        ):
             provider = GroqProvider(api_key="test-key", model="llama-3.1-70b-versatile")
 
         assert provider.name == "groq"
@@ -188,7 +219,10 @@ class TestGroqProviderProperties:
         """モデル名が正しく返される"""
         from src.ai.providers.groq import GroqProvider
 
-        with patch("src.ai.providers.groq.AsyncGroq"):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+        ):
             provider = GroqProvider(api_key="test-key", model="mixtral-8x7b-32768")
 
         assert provider.model == "mixtral-8x7b-32768"
@@ -207,7 +241,11 @@ class TestGroqProviderContextGeneration:
         mock_response.choices = [MagicMock(message=MagicMock(content="Context-aware response"))]
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.providers.groq.AsyncGroq", return_value=mock_client):
+        with patch(
+            "src.ai.providers.groq.AsyncGroq",
+            autospec=True,
+            return_value=mock_client,
+        ):
             provider = GroqProvider(api_key="test-key", model="llama-3.1-70b-versatile")
 
             context = [

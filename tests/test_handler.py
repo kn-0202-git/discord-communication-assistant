@@ -172,7 +172,7 @@ class TestMessageHandler:
         )
 
         # aiohttpのモック
-        with patch("src.bot.handlers.aiohttp.ClientSession") as mock_session:
+        with patch("src.bot.handlers.aiohttp.ClientSession", autospec=True) as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.read = AsyncMock(return_value=fake_image)
@@ -218,7 +218,7 @@ class TestMessageHandler:
 
         storage.save_file = AsyncMock()  # type: ignore[assignment]
 
-        with patch("src.bot.handlers.aiohttp.ClientSession") as mock_session:
+        with patch("src.bot.handlers.aiohttp.ClientSession", autospec=True) as mock_session:
             mock_session_instance = AsyncMock()
             mock_session_instance.__aenter__.return_value = mock_session_instance
             mock_session_instance.__aexit__.return_value = None

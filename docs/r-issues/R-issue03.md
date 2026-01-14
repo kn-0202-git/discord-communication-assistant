@@ -8,7 +8,7 @@
   - docs/planning/DEVELOPMENT_PLAN.md
 - 日付: 2026-01-11
 - レビュー者: Codex
-- ステータス: accepted
+- ステータス: done
 
 LLM1（レビュー者）
 - 重要指摘:

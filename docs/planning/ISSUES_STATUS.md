@@ -133,7 +133,7 @@
 |-------|------|--------|--------|------|
 | G1 | MAX_ATTACHMENT_SIZEのconfig化 | 高 | 🟢 完了 | config.yaml反映 + テスト更新 |
 | G2 | TokenCounter導入 | 高 | 🟢 完了 | docs/specs/TOKEN_COUNTER.md作成 + 長文トリム確認 |
-| G3 | MagicMock autospec化 | 高 | 🔴 未対応 | 主要テストのautospec化完了 |
+| G3 | MagicMock autospec化 | 高 | 🟢 完了 | 主要テストのautospec化完了 |
 | G4 | 共有aiohttpセッション導入 | 高 | 🟢 完了 | セッション再利用の確認 |
 
 ### Step 6: 統合・テスト

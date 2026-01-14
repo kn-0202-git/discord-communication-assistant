@@ -38,7 +38,11 @@ class TestWhisperProvider:
         """WhisperProviderインスタンス"""
         from src.ai.transcription.whisper import WhisperProvider
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+            return_value=mock_openai_client,
+        ):
             return WhisperProvider(
                 api_key="test-api-key",
                 model="whisper-1",
@@ -55,7 +59,11 @@ class TestWhisperProvider:
             return_value="これはテストの文字起こしです。"
         )
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+            return_value=mock_openai_client,
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
             audio_data = b"fake audio data"
             result = await provider.transcribe(audio_data)
@@ -73,7 +81,11 @@ class TestWhisperProvider:
             return_value="Hello, this is a test."
         )
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+            return_value=mock_openai_client,
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
             audio_data = b"fake audio data"
             result = await provider.transcribe(audio_data, language="en")
@@ -96,7 +108,11 @@ class TestWhisperProvider:
             side_effect=APIConnectionError(request=MagicMock())
         )
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+            return_value=mock_openai_client,
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
 
             with pytest.raises(AIConnectionError) as exc_info:
@@ -122,7 +138,11 @@ class TestWhisperProvider:
             )
         )
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+            return_value=mock_openai_client,
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
 
             with pytest.raises(AIQuotaExceededError) as exc_info:
@@ -148,7 +168,11 @@ class TestWhisperProvider:
             )
         )
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+            return_value=mock_openai_client,
+        ):
             provider = WhisperProvider(api_key="invalid-key", model="whisper-1")
 
             with pytest.raises(AIProviderError) as exc_info:
@@ -162,7 +186,11 @@ class TestWhisperProvider:
         """空の音声データでエラーが発生する"""
         from src.ai.transcription.whisper import WhisperProvider
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+            return_value=mock_openai_client,
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
 
             with pytest.raises(AIResponseError) as exc_info:
@@ -179,7 +207,10 @@ class TestWhisperProviderProperties:
         """プロバイダー名が正しく返される"""
         from src.ai.transcription.whisper import WhisperProvider
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI"):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
 
         assert provider.name == "openai"
@@ -189,7 +220,10 @@ class TestWhisperProviderProperties:
         """モデル名が正しく返される"""
         from src.ai.transcription.whisper import WhisperProvider
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI"):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
 
         assert provider.model == "whisper-1"
@@ -198,7 +232,10 @@ class TestWhisperProviderProperties:
         """__repr__が正しく動作する"""
         from src.ai.transcription.whisper import WhisperProvider
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI"):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI",
+            autospec=True,
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
 
         repr_str = repr(provider)
@@ -218,7 +255,9 @@ class TestWhisperProviderOptions:
         mock_client = MagicMock()
         mock_client.audio.transcriptions.create = AsyncMock(return_value="Transcribed with options")
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI", return_value=mock_client):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI", autospec=True, return_value=mock_client
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
             result = await provider.transcribe(
                 b"fake audio data",
@@ -245,7 +284,9 @@ class TestWhisperProviderOptions:
         mock_response.text = "Transcribed text from JSON"
         mock_client.audio.transcriptions.create = AsyncMock(return_value=mock_response)
 
-        with patch("src.ai.transcription.whisper.AsyncOpenAI", return_value=mock_client):
+        with patch(
+            "src.ai.transcription.whisper.AsyncOpenAI", autospec=True, return_value=mock_client
+        ):
             provider = WhisperProvider(api_key="test-key", model="whisper-1")
             result = await provider.transcribe(
                 b"fake audio data",

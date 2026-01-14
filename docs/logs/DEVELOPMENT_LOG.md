@@ -77,6 +77,26 @@
 
 - G3（autospec化）に着手
 
+## 2026-01-12: G3 MagicMock autospec化
+
+### 目標
+
+モックの型安全性を高め、API変更時にテストが失敗するようにする。
+
+### 実施内容
+
+- AsyncOpenAI/AsyncAnthropic/AsyncGroq などの patch に autospec を追加
+- aiohttp.ClientSession の patch に autospec を追加
+
+### テスト結果
+
+- コマンド: 未実施
+- 結果: -
+
+### 次のステップ
+
+- #33（/transcribe）またはG1/G4以降の残タスクに着手
+
 ## 2026-01-11: Issue #32 Whisperプロバイダー実装
 
 ### 目標
