@@ -1,5 +1,7 @@
 # Codex 設計・開発プロセス
 
+共通ルールは `docs/rules/CORE_RULES.md` を正とする。
+
 このプロセスは、理想（品質・再現性）と現実（1人開発・ドキュメント運用負荷）を両立するための実務手順です。
 実際の開発履歴・運用ルール（CLAUDE.md、DEVELOPMENT_PLAN.md、ISSUES_STATUS.md、TROUBLESHOOTING.md）に合わせて整理しています。
 

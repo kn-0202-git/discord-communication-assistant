@@ -42,42 +42,25 @@ Claude Codeがこのプロジェクトを理解し、一貫した開発を行う
 
 両OSで動作するコードを書くこと。パス区切りは `pathlib.Path` を使用。
 
+## 共通ルール
+
+全LLM共通のルールは `docs/rules/CORE_RULES.md` に集約。以降の規約はそちらを正とする。
+
 ## コーディング規約
 
-- 型ヒントを必ず使う
-- docstringを書く（Google style）
-- 関数は小さく、単一責任
-- マジックナンバー禁止（定数化）
-- パスは `pathlib.Path` を使用（OS互換）
-- 抽象化を意識（AI/ストレージは差し替え可能に）
-- ruffでフォーマット・リント
+詳細は `docs/rules/CORE_RULES.md` を参照。
 
 ## テスト方針
 
-- TDD（テスト先行）
-- tests/ にミラー構成
-- 1機能につき最低3テストケース（正常系・異常系・境界値）
-- AI部分はモック化してテスト
-- **テスト結果で品質がわかるようにする**
+詳細は `docs/rules/CORE_RULES.md` を参照。
 
 ## やってはいけないこと
 
-- Workspace AのデータをBに見せる処理
-- APIキーのハードコード
-- テストなしのPR
-- 破壊的なDB操作（DELETE/DROP）を確認なしで実行
-- OS依存のパス記述（`\` や `/` の直書き）
-- AIプロバイダーの直接呼び出し（必ずrouterを経由）
+詳細は `docs/rules/CORE_RULES.md` を参照。
 
 ## 開発フロー
 
-1. GitHub Issueを確認
-2. `feature/issue-{番号}` ブランチを作成
-3. テストを先に書く
-4. 実装
-5. `uv run ruff check src/` でリントチェック
-6. `uv run pytest tests/ -v` で全テスト通過確認
-7. PRを作成
+詳細は `docs/rules/CORE_RULES.md` を参照。
 
 ## コマンド
 ```bash
@@ -377,8 +360,12 @@ Codexで開発を依頼された場合は、ユーザーから指示がなくて
 ### Codex用テンプレート（固定）
 
 開発記録テンプレート（docs/logs/DEVELOPMENT_LOG.md 用）
+※共通テンプレート: docs/templates/log_template.md
 ```
 ## YYYY-MM-DD: Issue #NN タイトル
+
+### Agent
+-
 
 ### 目標
 -
@@ -398,8 +385,12 @@ Codexで開発を依頼された場合は、ユーザーから指示がなくて
 ```
 
 会話ログテンプレート（docs/archive/conversations/CONVERSATION_LOG_ISSUE{N}.md 用）
+※共通テンプレート: docs/templates/conversation_template.md
 ```
 # CONVERSATION_LOG_ISSUE{N}
+
+## Agent
+-
 
 ## 要約
 -
@@ -571,6 +562,9 @@ Codex（または他のAIレビューツール）からのレビュー結果を�
 ```markdown
 # 引き継ぎ文書 - YYYY-MM-DD
 
+## Agent
+-
+
 ## 今回のセッションでやったこと
 
 - [ ] 実施内容1
@@ -605,6 +599,8 @@ Codex（または他のAIレビューツール）からのレビュー結果を�
 - docs/logs/DEVELOPMENT_LOG.md の「YYYY-MM-DD: XXX」セクション
 - docs/planning/ISSUES_STATUS.md
 ```
+
+※共通テンプレート: docs/templates/handover_template.md
 
 ### 引き継ぎの頻度
 

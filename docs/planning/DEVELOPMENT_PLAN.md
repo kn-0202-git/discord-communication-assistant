@@ -227,13 +227,13 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 | Issue | タスク | 完了条件 | 状態 |
 |-------|--------|----------|------|
 | G1 | MAX_ATTACHMENT_SIZEのconfig化 | config.yaml反映 + テスト更新 | 未着手 |
-| G2 | TokenCounter導入 | 長文トリムの動作確認 | 未着手 |
-| G3 | MagicMock autospec化 | 主要テストのautospec化完了 | 未着手 |
 | G4 | 共有aiohttpセッション導入 | セッション再利用の確認 | 未着手 |
-| G5 | gitleaks導入方針決定 | 運用ルールに反映 | 未着手 |
+| G2 | TokenCounter導入 | docs/specs/TOKEN_COUNTER.md作成 + 長文トリム確認 | 未着手 |
+| G3 | MagicMock autospec化 | 主要テストのautospec化完了 | 未着手 |
+| G8 | AIRouterテスト分割 | 選択ロジックの単体テスト追加 | 未着手 |
 | G6 | main.py初期化のファクトリ化 | エントリ分離とテスト容易性 | 未着手 |
 | G7 | MessageService抽出 | Handlerの責務分離 | 未着手 |
-| G8 | AIRouterテスト分割 | 選択ロジックの単体テスト追加 | 未着手 |
+| G5 | gitleaks導入方針決定 | 運用ルールに反映 | 未着手 |
 
 ### Step 6: 統合・テスト
 

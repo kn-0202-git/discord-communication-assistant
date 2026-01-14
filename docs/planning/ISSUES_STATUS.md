@@ -100,6 +100,15 @@
 | #32 | Whisperプロバイダー | 高 | 🟢 完了 | TranscriptionProvider・WhisperProvider（11テスト） |
 | #33 | /transcribe実装 | 高 | 🔴 未対応 | 文字起こし結果表示 |
 
+### Step 5.5: Geminiレビュー対応（並行）
+
+| Issue | 課題 | 優先度 | status | 備考 |
+|-------|------|--------|--------|------|
+| G1 | MAX_ATTACHMENT_SIZEのconfig化 | 高 | 🔴 未対応 | config.yaml反映 + テスト更新 |
+| G2 | TokenCounter導入 | 高 | 🔴 未対応 | docs/specs/TOKEN_COUNTER.md作成 + 長文トリム確認 |
+| G3 | MagicMock autospec化 | 高 | 🔴 未対応 | 主要テストのautospec化完了 |
+| G4 | 共有aiohttpセッション導入 | 高 | 🔴 未対応 | セッション再利用の確認 |
+
 ### Step 6: 統合・テスト
 
 | Issue | 課題 | 優先度 | status | 備考 |
