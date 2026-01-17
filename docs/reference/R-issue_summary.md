@@ -20,8 +20,9 @@ R-issueの起点文書。まずここで状態と対象タスクを確認し、�
 | R-issue06 | done | 2026-01-12 | LLM間の作業共有手段の整理 | 参照点の固定化 | docs/handover/HANDOVER_*.md ほか | docs/r-issues/R-issue06.md |
 | R-issue07 | done | 2026-01-12 | Geminiレビューの妥当性評価 | 対応優先度の合意 | gemini_review.md | docs/r-issues/R-issue07.md |
 | R-issue08 | done | 2026-01-12 | マルチLLM体制への適応度診断 | ルール/テンプレの共通化 | gemini_process_review.md | docs/r-issues/R-issue08.md |
-| R-issue09 | todo | 2026-01-13 | Fly.io移行の実行検証 | Docker/Fly CLI/Volume/デプロイ | docs/planning/DEVELOPMENT_PLAN.md ほか | docs/r-issues/R-issue09.md |
-| R-issue10 | todo | 2026-01-14 | 常時起動/質問時起動の切替設計 | Discord運用モード分岐 | docs/planning/DEVELOPMENT_PLAN.md ほか | docs/r-issues/R-issue10.md |
+| R-issue09 | superseded | 2026-01-13 | ~~Fly.io移行の実行検証~~ | ~~Docker/Fly CLI/Volume/デプロイ~~ | R-issue11で代替 | docs/r-issues/R-issue09.md |
+| R-issue10 | done | 2026-01-14 | 常時起動/質問時起動の切替設計 | Discord運用モード分岐 | docs/planning/DEVELOPMENT_PLAN.md ほか | docs/r-issues/R-issue10.md |
+| R-issue11 | done | 2026-01-17 | クラウド移行設計変更 | Fly.io→Oracle Cloud Free Tier | docs/guides/DEPLOY_ORACLE.md ほか | docs/r-issues/R-issue11.md |
 
 ## 更新ルール
 
