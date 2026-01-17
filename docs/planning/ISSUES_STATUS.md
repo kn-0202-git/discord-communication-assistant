@@ -104,9 +104,9 @@
 
 | Issue | 課題 | 優先度 | status | 備考 |
 |-------|------|--------|--------|------|
-| #22 | Dockerfile作成 | 高 | 🔴 未対応 | ローカルでビルド成功 |
-| #23 | fly.toml設定 | 高 | 🔴 未対応 | Fly CLI設定完了 |
-| #24 | SQLite Volume対応 | 高 | 🔴 未対応 | データ永続化確認 |
+| #22 | Dockerfile作成 | 高 | 🟡 作業中 | Dockerfile作成済（ビルド未検証） |
+| #23 | fly.toml設定 | 高 | 🟡 作業中 | fly.toml作成済（アプリ名/CLI未検証） |
+| #24 | SQLite Volume対応 | 高 | 🟡 作業中 | Volumeマウント設定追加（永続化未検証） |
 | #25 | Fly.ioデプロイ | 高 | 🔴 未対応 | 本番稼働確認 |
 
 ### Step 4: Google Drive連携

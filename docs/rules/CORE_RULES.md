@@ -57,6 +57,8 @@
 - Issue完了時は記録を必ず更新
 - 開発記録: docs/logs/DEVELOPMENT_LOG.md
 - 会話ログ: docs/archive/conversations/CONVERSATION_LOG_ISSUE{N}.md
+  - ※ 外部ツール（Cursor/Codeium等）利用でログ出力が困難な場合は、DEVELOPMENT_LOGへの詳細な要約で代替可とする
+  - ※ その場合、Gitコミットハッシュや変更内容をDEVELOPMENT_LOGに明記すること
 - 状態更新: docs/planning/DEVELOPMENT_PLAN.md / docs/planning/ISSUES_STATUS.md
 - テンプレート: docs/templates/log_template.md / docs/templates/conversation_template.md / docs/templates/handover_template.md
 - Agent欄は必須（誰が作業したかを明記）

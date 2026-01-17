@@ -13,6 +13,35 @@
 
 ---
 
+## 2026-01-13: Issue #22-24 Fly.io移行準備（Dockerfile/fly.toml/Volume）
+
+### 目標
+
+Fly.io移行の準備として、Dockerfile・fly.toml・SQLite永続化の設定を整備する。
+
+### 実施内容
+
+- Dockerfileを追加し、uv.lockベースで依存関係をインストールする構成を作成
+- Fly.io向けにfly.tomlを追加し、/app/dataへのVolumeマウントを設定
+- Dockerビルド対象を最小化するために.dockerignoreを追加
+
+### テスト結果
+
+- コマンド: 未実施（Dockerビルド/Fly CLI未検証）
+- 結果: -
+
+### 変更ファイル
+
+- Dockerfile
+- .dockerignore
+- fly.toml
+- docs/planning/DEVELOPMENT_PLAN.md
+- docs/planning/ISSUES_STATUS.md
+
+### 次のステップ
+
+- Dockerビルドの確認とFly CLIでのデプロイ検証（Issue #22-25）
+
 ## 2026-01-12: G1 MAX_ATTACHMENT_SIZEのconfig化
 
 ### 目標
@@ -111,6 +140,7 @@ Google Drive連携の残タスク（OAuth設定、/saveコマンド、自動ア�
 - 自動アップロード時にDriveへ保存し、DBにdrive_pathを記録
 - セットアップガイド（Google Drive OAuth）を追加
 - ハンドラとコマンドのテストを追加
+- **Note**: 外部ツール（Claude Code）による集中的な実装のため、詳細な `CONVERSATION_LOG` は欠損。変更内容はGit履歴参照（`a23fe14`）。
 
 ### テスト結果
 

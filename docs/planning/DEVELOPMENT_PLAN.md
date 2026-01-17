@@ -132,9 +132,9 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 
 | Issue | タスク | 完了条件 | 状態 |
 |-------|--------|----------|------|
-| #22 | Dockerfile作成 | ローカルでビルド成功 | 未着手 |
-| #23 | fly.toml設定 | Fly CLI設定完了 | 未着手 |
-| #24 | SQLite Volume対応 | データ永続化確認 | 未着手 |
+| #22 | Dockerfile作成 | ローカルでビルド成功 | 🟡作業中 |
+| #23 | fly.toml設定 | Fly CLI設定完了 | 🟡作業中 |
+| #24 | SQLite Volume対応 | データ永続化確認 | 🟡作業中 |
 | #25 | Fly.ioデプロイ | 本番稼働確認 | 未着手 |
 
 ### Step 5.5: Geminiレビュー対応（並行）
@@ -252,6 +252,32 @@ uv run ruff check src/
 | Discord Botと相性◎ | WebSocket常時接続OK、スリープしない |
 | Claude Code連携◎ | Dockerfile/fly.tomlをコード管理、AIが修正しやすい |
 | 無料枠あり | 常時稼働前提で無料枠を使える |
+
+#### Lambda構成案（常時接続なしの場合・検討メモ）
+
+前提: 常時接続は不要、半日/日/週などの定期実行で十分。
+
+**構成**
+
+- EventBridge（cron）で定期起動
+- LambdaでDiscord APIを呼び出し（Webhook/メッセージ送信/バッチ処理）
+- 状態保存はDynamoDB or S3
+- シークレットはSSM or Secrets Manager
+
+**理由**
+
+| 理由 | 詳細 |
+|------|------|
+| 常時接続不要に最適 | WebSocket/Gateway接続が不要なら、Lambdaが最小構成 |
+| コスト最適化 | 実行時のみ課金され、アイドルコストを避けられる |
+| 運用が軽い | サーバー管理不要、スケールも自動 |
+
+**注意点**
+
+- リアルタイム性が必要な機能（常時接続）には不向き
+- Slash Commandの即時応答が必要ならAPI Gateway/Lambda構成を追加検討
+
+**現在の方針**: いまは実装しない。要件が「定期実行で十分」と確定したら移行候補として検討する。
 
 #### 実施タイミング
 
