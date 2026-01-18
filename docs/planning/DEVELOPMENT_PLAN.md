@@ -154,6 +154,19 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 | G7 | MessageService抽出 | Handlerの責務分離 | ✅完了 |
 | G5 | gitleaks導入方針決定 | 運用ルールに反映 | ✅完了 |
 
+### Step 5.6: R-issue12-14レビュー対応（/search・/record・E2E）
+
+| Issue | タスク | 完了条件 | 状態 |
+|------|-------|--------|------|
+| R-issue12 | /set_room_type追加 | 管理者コマンド追加、DB更新ヘルパー実装 | ✅完了 |
+| R-issue12 | 統合Room運用ドキュメント | DISCORD_SETUPに手順追記 | ✅完了 |
+| R-issue12 | /search検索範囲テスト | 通常/統合Roomの範囲テスト追加 | ✅完了 |
+| R-issue13 | /recordメッセージ明確化 | プレースホルダー録音の注記を明記 | 未着手 |
+| R-issue13 | voice_recording.enabled導入 | config.yaml追加、無効時は/record未登録 | 未着手 |
+| R-issue13 | /recordフローのテスト追加 | VC未接続/開始/停止のケース追加 | 未着手 |
+| R-issue14 | 最小E2Eスクリプト | tests/e2eに追加、環境変数で実行 | 未着手 |
+| R-issue14 | E2E運用ドキュメント | テスト用Bot/Guild分離手順 | 未着手 |
+
 ### Step 6: 統合・テスト【一部完了】
 
 | Issue | タスク | 完了条件 | 状態 |

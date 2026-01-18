@@ -71,3 +71,37 @@
   - pre-commit hookでコミット時に自動チェック
   - GitHub ActionsでPR時にも二重チェック
   - 誤検知は `.gitleaksignore` で除外設定
+
+## クラウド移行設計原則
+
+> **変更履歴**: 2026-01-17 Fly.io → Oracle Cloud Free Tierに変更
+
+### 段階的移行（無料POC → 有料A → 有料B）
+
+| フェーズ | 目的 | 実行形態 |
+|----------|------|----------|
+| 無料POC | 価値検証 | Oracle Cloud Free Tier（常時稼働） |
+| 有料A | 安定運用 | Oracle Cloud + PostgreSQL |
+| 有料B | スケール | AWS/GCPへ移行（必要時） |
+
+### 設計思想
+
+- **ベンダ非依存**: SaaSやUIにロックインしない（正本データは移行可能）
+- **Provider境界で差し替え可能**: DB/Storage/AI層は抽象化済み
+- **イベントと派生データを分離**: AI生成物は再生成可能に
+- **Workspace分離は強制**: フィルタ忘れで漏れない設計＋テスト
+
+### クラウド選定（2026-01-17時点）
+
+| 選択肢 | 評価 | 理由 |
+|--------|------|------|
+| **Oracle Cloud Free Tier** | ✅ 採用 | 永久無料、4 OCPU ARM、24GB RAM、WebSocket常時接続OK |
+| Fly.io | ❌ 不採用 | 無料枠なし |
+| GitHub Actions | 代替案 | バッチのみ（コマンド不可） |
+| Railway | 代替案 | 月$5クレジット限定 |
+
+**無料枠の運用ルール**:
+- 無料枠の変更/終了リスクを想定し、四半期に一度公式情報を確認する
+- 変更があった場合は代替案（Railway/Render/AWS等）への切り替え可否を再評価する
+
+詳細は `docs/planning/DEVELOPMENT_PLAN.md` セクション6.3を参照。

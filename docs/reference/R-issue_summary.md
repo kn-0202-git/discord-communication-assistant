@@ -23,6 +23,10 @@ R-issueの起点文書。まずここで状態と対象タスクを確認し、�
 | R-issue09 | superseded | 2026-01-13 | ~~Fly.io移行の実行検証~~ | ~~Docker/Fly CLI/Volume/デプロイ~~ | R-issue11で代替 | docs/r-issues/R-issue09.md |
 | R-issue10 | done | 2026-01-14 | 常時起動/質問時起動の切替設計 | Discord運用モード分岐 | docs/planning/DEVELOPMENT_PLAN.md ほか | docs/r-issues/R-issue10.md |
 | R-issue11 | done | 2026-01-17 | クラウド移行設計変更 | Fly.io→Oracle Cloud Free Tier | docs/guides/DEPLOY_ORACLE.md ほか | docs/r-issues/R-issue11.md |
+| R-issue12 | done | 2026-01-18 | /search 検索範囲と統合Room運用 | /set_room_type コマンド追加、ドキュメント整備、テスト追加 | src/bot/commands.py, docs/guides/DISCORD_SETUP.md | docs/r-issues/R-issue12.md |
+| R-issue13 | in-progress | 2026-01-18 | /record の利用条件と録音機能ギャップ | メッセージ明確化、設定フラグ追加、テスト追加 | src/bot/voice_recorder.py, config.yaml | docs/r-issues/R-issue13.md |
+| R-issue14 | in-progress | 2026-01-18 | Discord E2Eテスト自動化の検討 | 最小E2Eスクリプト作成、テスト環境分離 | tests/e2e/ | docs/r-issues/R-issue14.md |
+| R-issue15 | in-progress | 2026-01-18 | Raspberry Piローカル実行の適合性検討 | 最小構成で起動確認、ARM依存の切り分け | docs/specs/REQUIREMENTS.md, Dockerfile | docs/r-issues/R-issue15.md |
 
 ## 更新ルール
 
