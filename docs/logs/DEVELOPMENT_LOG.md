@@ -708,3 +708,95 @@ gitleaksを導入し、シークレットの誤コミットを防止する。
 ### 次のステップ
 
 - G8: AIRouterテスト分割に着手
+
+---
+
+## 2026-01-18: R-issue12 手動テスト実施
+
+### Agent
+
+Claude Opus 4.5
+
+### 目標
+
+Step 5.6で実装したR-issue12（/search検索範囲と統合Room運用）の手動テストを実施し、動作を確認する。
+
+### 実施内容
+
+#### Step 1: ユニットテスト実行
+
+```bash
+uv run pytest tests/test_commands.py -v -k "search"
+```
+
+結果: 2/2 passed
+- `test_search_command_in_topic_room` (CMD-15)
+- `test_search_command_in_aggregation_room` (CMD-16)
+
+#### Step 2: Discord環境セットアップ
+
+| チャンネル | Room種別 |
+|------------|----------|
+| room1 | topic（通常） |
+| room2 | topic（通常） |
+| room3-admin | aggregation（統合） |
+
+- Bot起動: `uv run python -m src.main`
+- テストメッセージ送信: 各Roomに「テストです1」「テストです2」「テストです3」
+- `/set_room_type aggregation` でroom3-adminを統合Roomに設定
+
+#### Step 3: 手動テスト実施
+
+| テスト | 内容 | 結果 |
+|--------|------|------|
+| TC-1 | 通常Roomで `/search テストです` | ✅ 同一Roomのみヒット |
+| TC-2 | 統合Roomで `/search テストです` | ✅ Workspace全体ヒット |
+| TC-3 | 非管理者で `/set_room_type` | ⏸️ スキップ（別アカウントなし） |
+| TC-4 | `/set_room_type topic` 後に検索 | ✅ 同一Roomのみヒット |
+
+### 発見した問題
+
+#### 問題1: Room名がIDで表示される（R-issue17）
+
+**現象**: 検索結果のRoom名が `#Room-1457257672784089120` のようなID形式
+
+**原因**: `src/bot/services/message_service.py:112` でチャンネル名を取得していない
+
+```python
+room = self.db.create_room(
+    workspace_id=workspace.id,
+    name=f"Room-{channel_id}",  # ← IDを使用
+    ...
+)
+```
+
+#### 問題2: DBセッションエラーのリカバリー不足（R-issue17）
+
+**現象**: メッセージ重複エラー発生後、セッションが `PendingRollbackError` 状態になり、以降のDB操作が全て失敗
+
+**原因**: 例外発生時に `session.rollback()` が呼ばれていない
+
+#### 問題3: 管理者コマンドが全員に表示（R-issue18）
+
+**現象**: `/set_room_type` が管理者以外にも表示される
+
+**対策案**: `@app_commands.default_permissions(administrator=True)` を追加
+
+### テスト結果
+
+- ユニットテスト: 2/2 passed
+- 手動テスト: 3/4 passed（1件スキップ）
+- 機能動作: ✅ R-issue12の実装は正常動作
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|----------|----------|
+| docs/r-issues/R-issue17.md | 新規作成 - Room名表示とエラーハンドリング |
+| docs/r-issues/R-issue18.md | 新規作成 - 管理者コマンド権限制御 |
+
+### 次のステップ
+
+- R-issue17対応: Room名表示修正、DBセッションリカバリー（優先度: 高）
+- R-issue18対応: default_permissions追加（優先度: 中）
+- R-issue13, R-issue14の実施

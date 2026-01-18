@@ -27,6 +27,7 @@ R-issueの起点文書。まずここで状態と対象タスクを確認し、�
 | R-issue13 | in-progress | 2026-01-18 | /record の利用条件と録音機能ギャップ | メッセージ明確化、設定フラグ追加、テスト追加 | src/bot/voice_recorder.py, config.yaml | docs/r-issues/R-issue13.md |
 | R-issue14 | in-progress | 2026-01-18 | Discord E2Eテスト自動化の検討 | 最小E2Eスクリプト作成、テスト環境分離 | tests/e2e/ | docs/r-issues/R-issue14.md |
 | R-issue15 | in-progress | 2026-01-18 | Raspberry Piローカル実行の適合性検討 | 最小構成で起動確認、ARM依存の切り分け | docs/specs/REQUIREMENTS.md, Dockerfile | docs/r-issues/R-issue15.md |
+| R-issue16 | draft | 2026-01-18 | マルチLLM運用の文書/記録整合性の再評価 | 参照起点/テンプレ準拠/最新状態の一致性 | docs/rules/CORE_RULES.md, docs/INDEX.md | docs/r-issues/R-issue16.md |
 
 ## 更新ルール
 
