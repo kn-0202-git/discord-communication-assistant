@@ -34,7 +34,7 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 | G4: リマインド | - | リマインダー | - |
 | G5: 分離管理 | ✅ Workspace | - | - |
 | G6: AI切替 | ✅ AIRouter | - | - |
-| 可用性（24h稼働） | - | Fly.io移行 | - |
+| 可用性（24h稼働） | - | Oracle Cloud移行 | - |
 | ファイルクラウド化 | - | Google Drive | - |
 
 **結論**: Phase 2で24h稼働+クラウドファイル保存を実現。Phase 3でRAG追加し最終ゴール達成。
@@ -89,9 +89,11 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 2. リマインダー実装
 3. 通話録音・文字起こし（ローカル機能を先に完成）
 4. Google Drive連携（クラウドストレージ）
-5. クラウド移行（Fly.io）
+5. クラウド移行（Oracle Cloud Free Tier）
 
 **順序の理由**: ローカルで全機能を確認してからクラウド移行する方が自然なフロー
+
+**変更履歴**: 2026-01-17 Fly.ioが無料で使えないため、Oracle Cloud Free Tierに変更
 
 ### Step 1: 技術課題解消【完了】
 
@@ -119,7 +121,7 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 | #32 | Whisperプロバイダー | 文字起こしAPI連携 | ✅完了 |
 | #33 | /transcribe実装 | 文字起こし結果表示 | ✅完了 |
 
-### Step 4: Google Drive連携【未着手】
+### Step 4: Google Drive連携【完了】
 
 | Issue | タスク | 完了条件 | 状態 |
 |-------|--------|----------|------|
@@ -128,14 +130,16 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 | #28 | /saveコマンド | 手動アップロード成功 | ✅完了 |
 | #29 | 自動アップロード | config設定で制御 | ✅完了 |
 
-### Step 5: クラウド移行（Fly.io）【未着手】
+### Step 5: クラウド移行（Oracle Cloud Free Tier）【未着手】
+
+> **変更履歴**: 2026-01-17 Fly.ioが無料で使えないため、Oracle Cloud Free Tierに変更
 
 | Issue | タスク | 完了条件 | 状態 |
 |-------|--------|----------|------|
-| #22 | Dockerfile作成 | ローカルでビルド成功 | 🟡作業中 |
-| #23 | fly.toml設定 | Fly CLI設定完了 | 🟡作業中 |
-| #24 | SQLite Volume対応 | データ永続化確認 | 🟡作業中 |
-| #25 | Fly.ioデプロイ | 本番稼働確認 | 未着手 |
+| #22 | Dockerfile作成 | ローカルでビルド成功 | ✅完了 |
+| #23 | Oracle Cloud環境構築 | ARM A1インスタンス作成、Docker/Python設定 | 未着手 |
+| #24 | OCI Block Volume対応 | SQLiteデータ永続化確認 | 未着手 |
+| #25 | Oracle Cloudデプロイ | 本番稼働確認 | 未着手 |
 
 ### Step 5.5: Geminiレビュー対応（並行）
 
@@ -145,9 +149,9 @@ docs/specs/VISION.mdで定義した最終ゴールと、各Phaseでの対応状�
 | G4 | 共有aiohttpセッション導入 | セッション再利用の確認 | ✅完了 |
 | G2 | TokenCounter導入 | docs/specs/TOKEN_COUNTER.md作成 + 長文トリム確認 | ✅完了 |
 | G3 | MagicMock autospec化 | 主要テストのautospec化完了 | ✅完了 |
-| G8 | AIRouterテスト分割 | 選択ロジックの単体テスト追加 | 未着手 |
-| G6 | main.py初期化のファクトリ化 | エントリ分離とテスト容易性 | 未着手 |
-| G7 | MessageService抽出 | Handlerの責務分離 | 未着手 |
+| G8 | AIRouterテスト分割 | 選択ロジックの単体テスト追加 | ✅完了 |
+| G6 | main.py初期化のファクトリ化 | エントリ分離とテスト容易性 | ✅完了 |
+| G7 | MessageService抽出 | Handlerの責務分離 | ✅完了 |
 | G5 | gitleaks導入方針決定 | 運用ルールに反映 | ✅完了 |
 
 ### Step 6: 統合・テスト【一部完了】
@@ -243,15 +247,37 @@ uv run ruff check src/
 
 #### 結論
 
-**Fly.io一択**（議論ログより）
+**Oracle Cloud Free Tier**（2026-01-17 変更）
 
-#### 理由
+> **変更履歴**: 2026-01-17 Fly.ioが無料で使えないことが判明。Oracle Cloud Free Tierに変更。
+
+#### 選定理由
 
 | 理由 | 詳細 |
 |------|------|
 | Discord Botと相性◎ | WebSocket常時接続OK、スリープしない |
-| Claude Code連携◎ | Dockerfile/fly.tomlをコード管理、AIが修正しやすい |
-| 無料枠あり | 常時稼働前提で無料枠を使える |
+| 永久無料 | 4 OCPU ARM、24GB RAM、200GB Storageが無料 |
+| コード変更なし | 既存Dockerfileがそのまま動作 |
+| 全機能維持 | スラッシュコマンド、音声録音、リアルタイム通知すべて対応 |
+
+#### Oracle Cloud Free Tier スペック
+
+| リソース | 無料枠 |
+|----------|--------|
+| Compute | ARM A1（4 OCPU、24GB RAM） |
+| Block Volume | 200GB |
+| Object Storage | 10GB |
+| Network | 10TB/月 |
+
+#### 代替案（フォールバック）
+
+Oracle Cloudが使えない場合の代替：
+
+| 選択肢 | 特徴 |
+|--------|------|
+| Railway | 月$5クレジット、使い切ると停止 |
+| Render.com | 無料枠あるがスリープあり（15分） |
+| GitHub Actions | バッチモードのみ（コマンド不可） |
 
 #### Lambda構成案（常時接続なしの場合・検討メモ）
 
@@ -283,14 +309,18 @@ uv run ruff check src/
 
 Phase 2 Step 4（Google Drive連携）完了後、Step 6（統合テスト）の前。Step 5と並行して「Geminiレビュー対応（Step 5.5）」を進める。
 
-**変更履歴**: 2025-01-06 順序変更。ローカル機能を先に完成させてからクラウド移行する方針に変更。
+**変更履歴**:
+- 2025-01-06 順序変更。ローカル機能を先に完成させてからクラウド移行する方針に変更。
+- 2026-01-17 Fly.io → Oracle Cloud Free Tierに変更。
 
 #### 実施内容
 
-1. Dockerfile作成
-2. fly.toml設定
-3. Fly.ioデプロイ
-4. SQLite→永続化対応（Volume）
+1. Oracle Cloud Free Tier登録
+2. ARM A1インスタンス作成（Ubuntu 22.04）
+3. Docker、Python 3.11インストール
+4. Dockerコンテナビルド・起動
+5. OCI Block Volumeでデータ永続化
+6. systemdサービス設定（自動再起動）
 
 ---
 

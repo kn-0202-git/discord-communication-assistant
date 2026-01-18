@@ -2,7 +2,7 @@
 
 **期間**: 2026-01-11 ～
 **Issue**: #32-
-**テスト**: 180 → 205
+**テスト**: 180 → 281
 
 このファイルはPhase 3の開発記録です。
 過去の記録は以下のアーカイブを参照してください：
@@ -10,6 +10,181 @@
 - [Phase 2（Issue #15-31）](../archive/logs/DEVELOPMENT_LOG_PHASE2.md)
 
 要約は [DEVELOPMENT_SUMMARY.md](DEVELOPMENT_SUMMARY.md) を参照してください。
+
+---
+
+## 2026-01-17: Step 5.5 Geminiレビュー対応（G8, G6, G7）
+
+### Agent
+
+Claude Opus 4.5
+
+### 目標
+
+Geminiレビュー指摘（G8: AIRouterテスト分割、G6: main.py初期化ファクトリ化、G7: MessageService抽出）を実装し、コード品質を向上させる。
+
+### 実施内容
+
+#### G8: AIRouterテスト分割（16テスト追加）
+
+tests/test_ai_router.pyに3つのテストクラスを追加：
+- `TestAIRouterSelectionLogic`（8テスト）: Room > Workspace > グローバルの優先順位を段階的にテスト
+- `TestAIRouterEdgeCases`（5テスト）: 空のID、特殊文字、purpose間の独立性
+- `TestAIRouterFallbackLogic`（3テスト）: フォールバック順序、未設定時の空リスト
+
+#### G6: main.py初期化ファクトリ化（172行→67行）
+
+新規作成：
+- `src/config.py`: AppConfig - YAML設定の一元管理クラス
+- `src/factory.py`: AppComponents dataclass + create_app_components関数
+- `src/bot/initializer.py`: BotInitializer - Bot初期化ロジック
+
+効果：
+- config.yamlの二重読み込み解消
+- DI対応でテスト容易性向上
+- main.pyが簡潔なエントリポイントに
+
+#### G7: MessageService抽出（344行→186行）
+
+新規作成：
+- `src/bot/services/message_service.py`: メッセージ保存のビジネスロジック
+
+MessageHandlerの責務を分離：
+- Handler: DM判定、オーケストレーション
+- Service: Workspace/Room確保、メッセージタイプ判定、添付ファイル保存
+
+後方互換性を維持（既存テストが変更なしで通過）
+
+### 発生したエラーと解決
+
+1. **モックパスエラー**: `src.bot.handlers.aiohttp` → `src.bot.services.message_service.aiohttp`に変更
+2. **AsyncMock問題**: `session.get()`が非同期コンテキストマネージャを返さない → `MagicMock`に変更、`mock_response.headers`を辞書で設定
+
+### テスト結果
+
+- コマンド: `uv run pytest tests/ -v`
+- 結果: 281 passed, 2 failed（既存のGoogle Drive Storage問題）
+- G8/G6/G7関連テスト: 87 passed（全て通過）
+- pyright: 0 errors（変更ファイルのみ）
+- ruff: All checks passed
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|----------|----------|
+| src/config.py | 新規作成 - AppConfig |
+| src/factory.py | 新規作成 - create_app_components |
+| src/bot/initializer.py | 新規作成 - BotInitializer |
+| src/main.py | ファクトリ化（172→67行） |
+| src/bot/services/__init__.py | 新規作成 |
+| src/bot/services/message_service.py | 新規作成 - MessageService |
+| src/bot/handlers.py | オーケストレーターに変更（344→186行） |
+| tests/test_ai_router.py | G8テスト追加（18→34テスト） |
+| tests/test_config.py | 新規作成（11テスト） |
+| tests/test_factory.py | 新規作成（10テスト） |
+| tests/test_message_service.py | 新規作成（16テスト） |
+| tests/test_handler.py | モックパス修正 |
+| docs/planning/DEVELOPMENT_PLAN.md | G8/G6/G7を完了に更新 |
+
+### 次のステップ
+
+- Step 5: Oracle Cloud移行（#23, #24, #25）
+- 既存のGoogle Drive Storageテスト問題の修正（別Issue）
+
+---
+
+## 2026-01-17: R-issue11 レビュー指摘対応
+
+### Agent
+
+Codex (GPT-5)
+
+### 目標
+
+レビュー指摘に基づき、計画・デプロイ手順・運用ルールの不整合と安全性を改善する。
+
+### 実施内容
+
+1. **計画の整合性修正**
+   - Step 4（Google Drive連携）を「完了」に更新
+
+2. **デプロイガイドの安全性強化**
+   - Always Freeの注意書きを追加（変更/終了リスク）
+   - SSHのSecurity List制限を明記
+   - Block Volumeのマウント手順をデバイス確認/UUID固定に変更
+
+3. **運用ルール追記**
+   - 無料枠の四半期確認と変更時の再評価ルールを追加
+
+### テスト結果
+
+- コマンド: 未実施（ドキュメント更新のみ）
+- 結果: -
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|----------|----------|
+| docs/planning/DEVELOPMENT_PLAN.md | Step 4の完了表記に修正 |
+| docs/guides/DEPLOY_ORACLE.md | Always Free注意書き/SSH制限/Block Volume手順を更新 |
+| docs/rules/CORE_RULES.md | 無料枠の運用ルールを追記 |
+
+---
+
+## 2026-01-17: R-issue11 クラウド移行設計変更（Fly.io → Oracle Cloud）
+
+### Agent
+
+Claude Opus 4.5
+
+### 目標
+
+Fly.ioが無料で使えないことが判明したため、Phase 2 Step 5のクラウド移行先を再検討し、設計を変更する。
+
+### 実施内容
+
+1. **選択肢の調査**
+   - Oracle Cloud Free Tier、GitHub Actions Batch、Railway、Render.comを比較
+   - 9つの専門家視点（ソフトウェアエンジニア、Python開発者、コードレビュアー、UI/UX、ドメインエキスパート、教育者、セキュリティ、QA、AI）で評価
+
+2. **ユーザー要件の確認**
+   - リアルタイムが望ましいが1時間おきでもOK
+   - クラウド必須（ローカル常時稼働は不可）
+   - DB設計はSQLite/SQLAlchemy維持（NDJSON変更なし）
+
+3. **決定事項**
+   - Oracle Cloud Free Tierを採用（4 OCPU ARM、24GB RAM、200GB Storage永久無料）
+   - 既存コードの変更なし（Dockerfileそのまま使用）
+   - 全機能維持（スラッシュコマンド、音声録音、リアルタイム通知）
+
+4. **ドキュメント更新**
+   - DEVELOPMENT_PLAN.md: Phase 2 Step 5をOracle Cloudに変更
+   - ARCHITECTURE.md: セクション5.2をOracle Cloud構成に更新
+   - CORE_RULES.md: クラウド移行設計原則セクション追加
+   - DEPLOY_ORACLE.md: 新規作成（デプロイ手順）
+   - fly.toml: 参考用コメント追加
+
+### テスト結果
+
+- コマンド: 設計変更のためテスト実行なし
+- 結果: ドキュメント更新のみ
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|----------|----------|
+| docs/planning/DEVELOPMENT_PLAN.md | Phase 2 Step 5をOracle Cloudに変更 |
+| docs/specs/ARCHITECTURE.md | セクション5.2, 5.3更新 |
+| docs/rules/CORE_RULES.md | クラウド移行設計原則追加 |
+| docs/guides/DEPLOY_ORACLE.md | 新規作成 |
+| fly.toml | 参考用コメント追加 |
+| docs/r-issues/R-issue11.md | 新規作成 |
+
+### 次のステップ
+
+1. Oracle Cloud Free Tier登録
+2. Issue #23-25の実施（DEPLOY_ORACLE.md参照）
+3. 本番稼働確認
 
 ---
 

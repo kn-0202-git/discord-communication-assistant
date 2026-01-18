@@ -4,7 +4,7 @@
 """
 
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -171,8 +171,10 @@ class TestMessageHandler:
             ],
         )
 
-        # aiohttpのモック
-        with patch("src.bot.handlers.aiohttp.ClientSession", autospec=True) as mock_session:
+        # aiohttpのモック（MessageServiceに移動）
+        with patch(
+            "src.bot.services.message_service.aiohttp.ClientSession", autospec=True
+        ) as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.read = AsyncMock(return_value=fake_image)
@@ -225,19 +227,20 @@ class TestMessageHandler:
             drive_auto_upload=True,
         )
 
-        with patch("src.bot.handlers.aiohttp.ClientSession", autospec=True) as mock_session:
+        with patch("src.bot.services.message_service.aiohttp.ClientSession") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.read = AsyncMock(return_value=fake_image)
+            mock_response.headers = {"Content-Length": "18"}  # dict-like object
 
             mock_context = AsyncMock()
             mock_context.__aenter__.return_value = mock_response
             mock_context.__aexit__.return_value = None
 
-            mock_session_instance = AsyncMock()
+            # MagicMockを使用（session.get()は同期的にコンテキストマネージャを返すため）
+            mock_session_instance = MagicMock()
             mock_session_instance.get.return_value = mock_context
-            mock_session_instance.__aenter__.return_value = mock_session_instance
-            mock_session_instance.__aexit__.return_value = None
+            mock_session_instance.closed = False
 
             mock_session.return_value = mock_session_instance
 
@@ -270,7 +273,9 @@ class TestMessageHandler:
 
         storage.save_file = AsyncMock()  # type: ignore[assignment]
 
-        with patch("src.bot.handlers.aiohttp.ClientSession", autospec=True) as mock_session:
+        with patch(
+            "src.bot.services.message_service.aiohttp.ClientSession", autospec=True
+        ) as mock_session:
             mock_session_instance = AsyncMock()
             mock_session_instance.__aenter__.return_value = mock_session_instance
             mock_session_instance.__aexit__.return_value = None

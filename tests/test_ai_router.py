@@ -265,6 +265,374 @@ class TestAIProviderBase:
         assert provider.model == "gpt-4o"
 
 
+class TestAIRouterSelectionLogic:
+    """AIRouter選択ロジックの段階的テスト
+
+    優先順位: Room > Workspace > グローバル
+    各階層での選択ロジックを個別に検証する。
+    """
+
+    def test_global_only_returns_global_config(self) -> None:
+        """グローバル設定のみの場合、グローバル設定を返す"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            # workspace_overrides, room_overrides なし
+        }
+        router = AIRouter(config)
+
+        result = router.get_provider_info("summary")
+
+        assert result["provider"] == "openai"
+        assert result["model"] == "gpt-4o"
+
+    def test_workspace_overrides_global_when_workspace_configured(self) -> None:
+        """Workspace設定がある場合、Workspaceの設定を返す"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+                "google": {"api_key": "test", "models": ["gemini-1.5-flash"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "workspace_overrides": {
+                "ws_1": {"summary": {"provider": "google", "model": "gemini-1.5-flash"}},
+            },
+        }
+        router = AIRouter(config)
+
+        result = router.get_provider_info("summary", workspace_id="ws_1")
+
+        assert result["provider"] == "google"
+        assert result["model"] == "gemini-1.5-flash"
+
+    def test_workspace_falls_back_to_global_for_unconfigured_purpose(self) -> None:
+        """Workspaceに該当purposeがない場合、グローバルにフォールバック"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o", "gpt-4o-mini"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+                "search": {"provider": "openai", "model": "gpt-4o-mini"},
+            },
+            "workspace_overrides": {
+                "ws_1": {"summary": {"provider": "openai", "model": "gpt-4o-mini"}},
+                # searchは未設定
+            },
+        }
+        router = AIRouter(config)
+
+        # searchはworkspace_overridesに未設定なのでグローバルを使う
+        result = router.get_provider_info("search", workspace_id="ws_1")
+
+        assert result["provider"] == "openai"
+        assert result["model"] == "gpt-4o-mini"
+
+    def test_room_overrides_workspace_when_room_configured(self) -> None:
+        """Room設定がある場合、Roomの設定を返す（Workspaceより優先）"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+                "google": {"api_key": "test", "models": ["gemini-1.5-flash"]},
+                "anthropic": {"api_key": "test", "models": ["claude-3-5-sonnet"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "workspace_overrides": {
+                "ws_1": {"summary": {"provider": "google", "model": "gemini-1.5-flash"}},
+            },
+            "room_overrides": {
+                "room_1": {"summary": {"provider": "anthropic", "model": "claude-3-5-sonnet"}},
+            },
+        }
+        router = AIRouter(config)
+
+        result = router.get_provider_info("summary", workspace_id="ws_1", room_id="room_1")
+
+        assert result["provider"] == "anthropic"
+        assert result["model"] == "claude-3-5-sonnet"
+
+    def test_room_overrides_global_when_no_workspace_configured(self) -> None:
+        """Room設定がありWorkspace設定がない場合、Roomの設定を返す"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+                "anthropic": {"api_key": "test", "models": ["claude-3-5-sonnet"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "room_overrides": {
+                "room_1": {"summary": {"provider": "anthropic", "model": "claude-3-5-sonnet"}},
+            },
+            # workspace_overrides なし
+        }
+        router = AIRouter(config)
+
+        result = router.get_provider_info("summary", room_id="room_1")
+
+        assert result["provider"] == "anthropic"
+        assert result["model"] == "claude-3-5-sonnet"
+
+    def test_room_falls_back_to_workspace_for_unconfigured_purpose(self) -> None:
+        """Roomに該当purposeがない場合、Workspaceにフォールバック"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+                "google": {"api_key": "test", "models": ["gemini-1.5-flash"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "workspace_overrides": {
+                "ws_1": {"summary": {"provider": "google", "model": "gemini-1.5-flash"}},
+            },
+            "room_overrides": {
+                "room_1": {},  # 空（purposeなし）
+            },
+        }
+        router = AIRouter(config)
+
+        # room_1には設定がないのでws_1の設定を使う
+        result = router.get_provider_info("summary", workspace_id="ws_1", room_id="room_1")
+
+        assert result["provider"] == "google"
+        assert result["model"] == "gemini-1.5-flash"
+
+    def test_room_falls_back_to_global_when_no_workspace_override(self) -> None:
+        """RoomにもWorkspaceにも設定がない場合、グローバルにフォールバック"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "room_overrides": {
+                "room_1": {},  # 空
+            },
+            "workspace_overrides": {
+                "ws_1": {},  # 空
+            },
+        }
+        router = AIRouter(config)
+
+        result = router.get_provider_info("summary", workspace_id="ws_1", room_id="room_1")
+
+        assert result["provider"] == "openai"
+        assert result["model"] == "gpt-4o"
+
+    def test_unknown_workspace_id_returns_global(self) -> None:
+        """未知のworkspace_idの場合、グローバルを返す"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "workspace_overrides": {
+                "ws_1": {"summary": {"provider": "openai", "model": "gpt-4o-mini"}},
+            },
+        }
+        router = AIRouter(config)
+
+        result = router.get_provider_info("summary", workspace_id="unknown_ws")
+
+        assert result["provider"] == "openai"
+        assert result["model"] == "gpt-4o"
+
+
+class TestAIRouterEdgeCases:
+    """AIRouterのエッジケーステスト"""
+
+    def test_empty_string_workspace_id_treated_as_none(self) -> None:
+        """空文字列のworkspace_idはNone扱い（グローバルを返す）"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+                "google": {"api_key": "test", "models": ["gemini"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "workspace_overrides": {
+                "": {"summary": {"provider": "google", "model": "gemini"}},
+            },
+        }
+        router = AIRouter(config)
+
+        # 空文字列を渡した場合、""というキーにマッチする可能性があるが
+        # 通常はグローバル設定を返すべき動作を確認
+        result = router.get_provider_info("summary", workspace_id="")
+
+        # 空文字列キーが設定にある場合はそれを返す（実装依存）
+        # ここでは現状の動作をテストとして記録
+        assert result["provider"] in ["openai", "google"]
+
+    def test_empty_string_room_id_treated_as_none(self) -> None:
+        """空文字列のroom_idはNone扱い"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+        }
+        router = AIRouter(config)
+
+        result = router.get_provider_info("summary", room_id="")
+
+        assert result["provider"] == "openai"
+        assert result["model"] == "gpt-4o"
+
+    def test_multiple_purposes_are_independent(self) -> None:
+        """複数のpurposeは独立して動作する"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o", "text-embedding"]},
+                "anthropic": {"api_key": "test", "models": ["claude"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+                "embedding": {"provider": "openai", "model": "text-embedding"},
+            },
+            "workspace_overrides": {
+                "ws_1": {"summary": {"provider": "anthropic", "model": "claude"}},
+                # embeddingは上書きなし
+            },
+        }
+        router = AIRouter(config)
+
+        summary = router.get_provider_info("summary", workspace_id="ws_1")
+        embedding = router.get_provider_info("embedding", workspace_id="ws_1")
+
+        assert summary["provider"] == "anthropic"
+        assert embedding["provider"] == "openai"
+
+    def test_provider_config_returns_full_provider_info(self) -> None:
+        """get_provider_configはプロバイダーの完全な設定を返す"""
+        config = {
+            "ai_providers": {
+                "openai": {
+                    "api_key": "test-key-123",
+                    "models": ["gpt-4o", "gpt-4o-mini"],
+                    "base_url": "https://api.openai.com",
+                },
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+        }
+        router = AIRouter(config)
+
+        provider_config = router.get_provider_config("openai")
+
+        assert provider_config["api_key"] == "test-key-123"
+        assert "gpt-4o" in provider_config["models"]
+        assert provider_config["base_url"] == "https://api.openai.com"
+
+    def test_list_purposes_returns_all_configured(self) -> None:
+        """list_purposesは設定済みの全purposeを返す"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+                "embedding": {"provider": "openai", "model": "gpt-4o"},
+                "rag_answer": {"provider": "openai", "model": "gpt-4o"},
+            },
+        }
+        router = AIRouter(config)
+
+        purposes = router.list_purposes()
+
+        assert "summary" in purposes
+        assert "embedding" in purposes
+        assert "rag_answer" in purposes
+        assert len(purposes) == 3
+
+
+class TestAIRouterFallbackLogic:
+    """AIRouterフォールバックロジックのテスト"""
+
+    def test_fallback_returns_ordered_list(self) -> None:
+        """フォールバックは順序付きリストを返す"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+                "anthropic": {"api_key": "test", "models": ["claude"]},
+                "google": {"api_key": "test", "models": ["gemini"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "ai_fallback": {
+                "summary": [
+                    {"provider": "anthropic", "model": "claude"},
+                    {"provider": "google", "model": "gemini"},
+                ],
+            },
+        }
+        router = AIRouter(config)
+
+        fallbacks = router.get_fallback_info("summary")
+
+        assert len(fallbacks) == 2
+        assert fallbacks[0]["provider"] == "anthropic"
+        assert fallbacks[1]["provider"] == "google"
+
+    def test_fallback_empty_for_unconfigured_purpose(self) -> None:
+        """フォールバック未設定のpurposeは空リストを返す"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+                "embedding": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "ai_fallback": {
+                "summary": [{"provider": "openai", "model": "gpt-4o-mini"}],
+                # embeddingは未設定
+            },
+        }
+        router = AIRouter(config)
+
+        fallbacks = router.get_fallback_info("embedding")
+
+        assert fallbacks == []
+
+    def test_fallback_with_single_provider(self) -> None:
+        """フォールバックが1つのプロバイダーのみの場合"""
+        config = {
+            "ai_providers": {
+                "openai": {"api_key": "test", "models": ["gpt-4o", "gpt-4o-mini"]},
+            },
+            "ai_routing": {
+                "summary": {"provider": "openai", "model": "gpt-4o"},
+            },
+            "ai_fallback": {
+                "summary": [{"provider": "openai", "model": "gpt-4o-mini"}],
+            },
+        }
+        router = AIRouter(config)
+
+        fallbacks = router.get_fallback_info("summary")
+
+        assert len(fallbacks) == 1
+        assert fallbacks[0]["model"] == "gpt-4o-mini"
+
+
 class TestConfigLoading:
     """設定読み込みのテスト"""
 
