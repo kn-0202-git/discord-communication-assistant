@@ -113,6 +113,17 @@ INFO - Saved message X from ユーザー名
 1. `#room1` に画像を添付して送信
 2. `data/files/` ディレクトリに画像が保存されることを確認
 
+### 5.4 統合Room設定
+
+統合Room（aggregation）として使うチャンネルで、以下を実行:
+
+1. 対象チャンネルに一度メッセージを送信（Room登録のため）
+2. `/set_room_type` を実行し、`aggregation` を選択
+
+**注意**:
+- 管理者権限が必要
+- 通常Roomに戻す場合は `topic` を選択
+
 ## 6. トラブルシューティング
 
 ### Bot がオフラインのまま

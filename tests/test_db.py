@@ -77,6 +77,23 @@ class TestRoom:
 
         assert room.room_type == "aggregation"
 
+    def test_update_room_type(self, db: Database) -> None:
+        """Room種別の更新."""
+        workspace = db.create_workspace(name="A社", discord_server_id="123")
+
+        room = db.create_room(
+            workspace_id=workspace.id,
+            name="技術相談",
+            discord_channel_id="channel_123",
+            room_type="topic",
+        )
+
+        updated = db.update_room_type(room.id, "aggregation")
+
+        assert updated is not None
+        assert updated.room_type == "aggregation"
+        assert db.get_room_by_id(room.id).room_type == "aggregation"
+
 
 class TestMessage:
     """Message model tests."""

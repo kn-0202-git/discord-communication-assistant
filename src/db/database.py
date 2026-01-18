@@ -236,6 +236,24 @@ class Database:
         stmt = select(Room).where(Room.id == room_id)
         return self.session.execute(stmt).scalar_one_or_none()
 
+    def update_room_type(self, room_id: int, room_type: str) -> Room | None:
+        """Update room type.
+
+        Args:
+            room_id: Room ID.
+            room_type: Room type (topic / member / aggregation).
+
+        Returns:
+            Updated Room object or None.
+        """
+        room = self.session.get(Room, room_id)
+        if not room:
+            return None
+        room.room_type = room_type
+        self.session.commit()
+        self.session.refresh(room)
+        return room
+
     # Message operations
 
     def save_message(
@@ -318,6 +336,34 @@ class Database:
             return []
 
         # Search messages in those rooms only
+        stmt = (
+            select(Message)
+            .where(Message.room_id.in_(room_ids))
+            .where(Message.content.contains(keyword))
+            .order_by(Message.timestamp.desc())
+            .limit(limit)
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def search_messages_in_rooms(
+        self,
+        room_ids: list[int],
+        keyword: str,
+        limit: int = 50,
+    ) -> list[Message]:
+        """Search messages in specified rooms.
+
+        Args:
+            room_ids: Room IDs to search in.
+            keyword: Search keyword.
+            limit: Maximum number of results.
+
+        Returns:
+            List of matching messages.
+        """
+        if not room_ids:
+            return []
+
         stmt = (
             select(Message)
             .where(Message.room_id.in_(room_ids))

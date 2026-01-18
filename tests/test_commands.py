@@ -1,6 +1,6 @@
 """コマンドのテスト
 
-TEST_PLAN.md: CMD-01 ~ CMD-10
+TEST_PLAN.md: CMD-01 ~ CMD-22
 """
 
 from datetime import UTC, datetime, timedelta
@@ -311,10 +311,144 @@ class TestRemindersCommand:
         assert "1件" in embed.description
 
 
+class TestSearchCommand:
+    """/search コマンドのテスト"""
+
+    @pytest.fixture
+    def db(self):
+        """テスト用データベース"""
+        database = Database(":memory:")
+        database.create_tables()
+        yield database
+        database.close()
+
+    @pytest.fixture
+    def mock_interaction(self):
+        """モックInteraction"""
+        interaction = MagicMock(spec=discord.Interaction)
+        interaction.response = AsyncMock()
+        interaction.followup = AsyncMock()
+        interaction.guild = MagicMock(spec=discord.Guild)
+        interaction.guild.id = 123456789
+        interaction.channel = MagicMock()
+        interaction.channel.id = 111111
+        return interaction
+
+    @pytest.fixture
+    def bot_commands(self, db):
+        """BotCommandsインスタンス"""
+        from src.bot.commands import BotCommands
+
+        mock_tree = MagicMock()
+        mock_router = MagicMock()
+        return BotCommands(mock_tree, db, mock_router)
+
+    @pytest.mark.asyncio
+    async def test_search_command_in_topic_room(
+        self, db: Database, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-15: 通常Roomでは同一Roomのみ検索"""
+        workspace = db.create_workspace(name="テストサーバー", discord_server_id="123456789")
+        room1 = db.create_room(
+            workspace_id=workspace.id,
+            name="room1",
+            discord_channel_id="111111",
+            room_type="topic",
+        )
+        room2 = db.create_room(
+            workspace_id=workspace.id,
+            name="room2",
+            discord_channel_id="222222",
+            room_type="topic",
+        )
+
+        db.save_message(
+            room_id=room1.id,
+            sender_name="User A",
+            sender_id="user_a",
+            content="alpha message",
+            message_type="text",
+            discord_message_id="msg_1",
+        )
+        db.save_message(
+            room_id=room2.id,
+            sender_name="User B",
+            sender_id="user_b",
+            content="alpha other",
+            message_type="text",
+            discord_message_id="msg_2",
+        )
+
+        await bot_commands._handle_search(mock_interaction, "alpha")
+
+        mock_interaction.followup.send.assert_called_once()
+        call_kwargs = mock_interaction.followup.send.call_args.kwargs
+        embed = call_kwargs["embed"]
+
+        assert len(embed.fields) == 1
+        assert "#room1" in embed.fields[0].name
+        assert "alpha" in embed.fields[0].value
+
+    @pytest.mark.asyncio
+    async def test_search_command_in_aggregation_room(
+        self, db: Database, mock_interaction, bot_commands
+    ) -> None:
+        """CMD-16: 統合RoomではWorkspace内を検索"""
+        workspace = db.create_workspace(name="テストサーバー", discord_server_id="123456789")
+        room1 = db.create_room(
+            workspace_id=workspace.id,
+            name="room1",
+            discord_channel_id="111111",
+            room_type="topic",
+        )
+        room2 = db.create_room(
+            workspace_id=workspace.id,
+            name="room2",
+            discord_channel_id="222222",
+            room_type="topic",
+        )
+        aggregation_room = db.create_room(
+            workspace_id=workspace.id,
+            name="aggregation",
+            discord_channel_id="333333",
+            room_type="aggregation",
+        )
+
+        db.save_message(
+            room_id=room1.id,
+            sender_name="User A",
+            sender_id="user_a",
+            content="beta room1",
+            message_type="text",
+            discord_message_id="msg_1",
+        )
+        db.save_message(
+            room_id=room2.id,
+            sender_name="User B",
+            sender_id="user_b",
+            content="beta room2",
+            message_type="text",
+            discord_message_id="msg_2",
+        )
+
+        mock_interaction.channel.id = int(aggregation_room.discord_channel_id)
+
+        await bot_commands._handle_search(mock_interaction, "beta")
+
+        mock_interaction.followup.send.assert_called_once()
+        call_kwargs = mock_interaction.followup.send.call_args.kwargs
+        embed = call_kwargs["embed"]
+        field_names = [field.name for field in embed.fields]
+
+        assert len(embed.fields) == 2
+        assert any("#room1" in name for name in field_names)
+        assert any("#room2" in name for name in field_names)
+
+
 class TestTranscribeCommand:
     """/transcribe コマンドのテスト
 
-    CMD-15 ~ CMD-18
+    CMD-17 ~ CMD-20
     """
 
     @pytest.fixture
@@ -355,7 +489,7 @@ class TestTranscribeCommand:
     async def test_transcribe_command_success(
         self, db: Database, mock_interaction, bot_commands, temp_audio_file, monkeypatch
     ) -> None:
-        """CMD-15: /transcribe で文字起こし成功"""
+        """CMD-17: /transcribe で文字起こし成功"""
         from unittest.mock import patch
 
         # Workspaceとセッションを作成
@@ -405,7 +539,7 @@ class TestTranscribeCommand:
     async def test_transcribe_command_session_not_found(
         self, db: Database, mock_interaction, bot_commands
     ) -> None:
-        """CMD-16: 存在しないセッションIDでの /transcribe"""
+        """CMD-18: 存在しないセッションIDでの /transcribe"""
         # Workspaceを作成
         db.create_workspace(name="テストサーバー", discord_server_id="123456789")
 
@@ -421,7 +555,7 @@ class TestTranscribeCommand:
     async def test_transcribe_command_no_audio_file(
         self, db: Database, mock_interaction, bot_commands
     ) -> None:
-        """CMD-17: 音声ファイルがないセッションでの /transcribe"""
+        """CMD-19: 音声ファイルがないセッションでの /transcribe"""
         # Workspaceとセッションを作成（file_pathなし）
         workspace = db.create_workspace(name="テストサーバー", discord_server_id="123456789")
         room = db.create_room(
@@ -448,7 +582,7 @@ class TestTranscribeCommand:
     async def test_transcribe_command_outside_guild(
         self, db: Database, mock_interaction, bot_commands
     ) -> None:
-        """CMD-18: サーバー外（DM等）での /transcribe"""
+        """CMD-20: サーバー外（DM等）での /transcribe"""
         # guildをNoneに設定
         mock_interaction.guild = None
 
@@ -510,7 +644,7 @@ class TestSaveCommand:
     async def test_save_command_uploads_latest_attachment(
         self, db: Database, storage: LocalStorage, mock_interaction, bot_commands
     ) -> None:
-        """CMD-19: /save で最新添付をDrive保存"""
+        """CMD-21: /save で最新添付をDrive保存"""
         workspace = db.create_workspace(name="テストサーバー", discord_server_id="123456789")
         room = db.create_room(
             workspace_id=workspace.id,
@@ -558,7 +692,7 @@ class TestSaveCommand:
     async def test_save_command_without_drive_settings(
         self, db: Database, storage: LocalStorage, mock_interaction
     ) -> None:
-        """CMD-20: Drive未設定時の /save"""
+        """CMD-22: Drive未設定時の /save"""
         from src.bot.commands import BotCommands
 
         mock_tree = MagicMock()

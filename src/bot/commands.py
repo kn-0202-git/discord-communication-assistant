@@ -5,6 +5,7 @@
 コマンド一覧:
     /summary [days] - 直近の会話を要約
     /search {keyword} - 過去メッセージ検索
+    /set_room_type {room_type} - Room種別を設定
     /remind {title} {date} [description] - リマインダー登録
     /reminders - リマインダー一覧表示
     /record {action} - 通話録音の開始/停止
@@ -141,6 +142,7 @@ class BotCommands:
         """コマンドを登録"""
         self._register_summary_command()
         self._register_search_command()
+        self._register_set_room_type_command()
         self._register_remind_command()
         self._register_reminders_command()
         self._register_record_command()
@@ -191,6 +193,27 @@ class BotCommands:
         ) -> None:
             """メッセージを検索するコマンド"""
             await self._handle_search(interaction, keyword)
+
+    def _register_set_room_type_command(self) -> None:
+        """/set_room_type コマンドを登録"""
+
+        @self._tree.command(
+            name="set_room_type",
+            description="このチャンネルのRoom種別を設定します",
+        )
+        @app_commands.describe(room_type="Room種別 (topic/aggregation)")
+        @app_commands.choices(
+            room_type=[
+                app_commands.Choice(name="topic", value="topic"),
+                app_commands.Choice(name="aggregation", value="aggregation"),
+            ]
+        )
+        async def set_room_type_command(
+            interaction: discord.Interaction,
+            room_type: app_commands.Choice[str],
+        ) -> None:
+            """Room種別を設定するコマンド"""
+            await self._handle_set_room_type(interaction, room_type.value)
 
     def _register_remind_command(self) -> None:
         """/remind コマンドを登録"""
@@ -329,8 +352,9 @@ class BotCommands:
 
         try:
             guild = interaction.guild
+            channel = interaction.channel
 
-            if not guild:
+            if not guild or not channel:
                 await interaction.followup.send("このコマンドはサーバー内でのみ使用できます。")
                 return
 
@@ -340,12 +364,28 @@ class BotCommands:
                 await interaction.followup.send("このサーバーは登録されていません。")
                 return
 
-            # 検索を実行（Workspace内のみ）
-            results = self._db.search_messages(
-                workspace_id=workspace.id,
-                keyword=keyword,
-                limit=self.MAX_SEARCH_RESULTS,
-            )
+            # Roomを取得
+            room = self._db.get_room_by_discord_id(str(channel.id))
+            if not room:
+                await interaction.followup.send(
+                    "このチャンネルは登録されていません。"
+                    "メッセージを送信するとチャンネルが登録されます。"
+                )
+                return
+
+            # 検索を実行
+            if room.room_type == "aggregation":
+                results = self._db.search_messages(
+                    workspace_id=workspace.id,
+                    keyword=keyword,
+                    limit=self.MAX_SEARCH_RESULTS,
+                )
+            else:
+                results = self._db.search_messages_in_rooms(
+                    room_ids=[room.id],
+                    keyword=keyword,
+                    limit=self.MAX_SEARCH_RESULTS,
+                )
 
             if not results:
                 await interaction.followup.send(
@@ -361,6 +401,8 @@ class BotCommands:
                 timestamp=datetime.now(),
             )
 
+            room_name_cache: dict[int, str] = {}
+
             for i, msg in enumerate(results[: self.MAX_SEARCH_RESULTS], 1):
                 # メッセージ内容を短縮
                 content = msg.content
@@ -370,8 +412,15 @@ class BotCommands:
                 # 日時をフォーマット
                 timestamp = msg.timestamp.strftime("%Y-%m-%d %H:%M")
 
+                # Room名を取得
+                room_name = room_name_cache.get(msg.room_id)
+                if room_name is None:
+                    room = self._db.get_room_by_id(msg.room_id)
+                    room_name = room.name if room else "不明"
+                    room_name_cache[msg.room_id] = room_name
+
                 embed.add_field(
-                    name=f"{i}. {msg.sender_name} ({timestamp})",
+                    name=f"{i}. {timestamp} | {msg.sender_name} | #{room_name}",
                     value=content,
                     inline=False,
                 )
@@ -379,6 +428,55 @@ class BotCommands:
             embed.set_footer(text="このWorkspace内で検索されました")
 
             await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            await interaction.followup.send(f"エラーが発生しました: {e}")
+
+    async def _handle_set_room_type(
+        self,
+        interaction: discord.Interaction,
+        room_type: str,
+    ) -> None:
+        """/set_room_type コマンドのハンドラ
+
+        Args:
+            interaction: Discord Interaction
+            room_type: Room種別 (topic/aggregation)
+        """
+        await interaction.response.defer(thinking=True)
+
+        try:
+            guild = interaction.guild
+            channel = interaction.channel
+
+            if not guild or not channel:
+                await interaction.followup.send("このコマンドはサーバー内でのみ使用できます。")
+                return
+
+            user = interaction.user
+            if not isinstance(user, discord.Member) or not user.guild_permissions.administrator:
+                await interaction.followup.send("このコマンドは管理者のみ実行できます。")
+                return
+
+            workspace = self._db.get_workspace_by_discord_id(str(guild.id))
+            if not workspace:
+                await interaction.followup.send("このサーバーは登録されていません。")
+                return
+
+            room = self._db.get_room_by_discord_id(str(channel.id))
+            if not room:
+                await interaction.followup.send(
+                    "このチャンネルは登録されていません。"
+                    "メッセージを送信するとチャンネルが登録されます。"
+                )
+                return
+
+            updated_room = self._db.update_room_type(room.id, room_type)
+            if not updated_room:
+                await interaction.followup.send("Room種別の更新に失敗しました。")
+                return
+
+            await interaction.followup.send(f"Room種別を {room_type} に変更しました。")
 
         except Exception as e:
             await interaction.followup.send(f"エラーが発生しました: {e}")
