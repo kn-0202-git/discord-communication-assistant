@@ -75,15 +75,19 @@ class Database:
         Returns:
             Created Workspace object.
         """
-        workspace = Workspace(
-            name=name,
-            discord_server_id=discord_server_id,
-            ai_config=ai_config,
-        )
-        self.session.add(workspace)
-        self.session.commit()
-        self.session.refresh(workspace)
-        return workspace
+        try:
+            workspace = Workspace(
+                name=name,
+                discord_server_id=discord_server_id,
+                ai_config=ai_config,
+            )
+            self.session.add(workspace)
+            self.session.commit()
+            self.session.refresh(workspace)
+            return workspace
+        except Exception:
+            self.session.rollback()
+            raise
 
     def get_workspace_by_discord_id(self, discord_server_id: str) -> Workspace | None:
         """Get workspace by Discord server ID.
@@ -131,17 +135,21 @@ class Database:
         Returns:
             Created Room object.
         """
-        room = Room(
-            workspace_id=workspace_id,
-            name=name,
-            discord_channel_id=discord_channel_id,
-            room_type=room_type,
-            ai_config=ai_config,
-        )
-        self.session.add(room)
-        self.session.commit()
-        self.session.refresh(room)
-        return room
+        try:
+            room = Room(
+                workspace_id=workspace_id,
+                name=name,
+                discord_channel_id=discord_channel_id,
+                room_type=room_type,
+                ai_config=ai_config,
+            )
+            self.session.add(room)
+            self.session.commit()
+            self.session.refresh(room)
+            return room
+        except Exception:
+            self.session.rollback()
+            raise
 
     def get_room_by_discord_id(self, discord_channel_id: str) -> Room | None:
         """Get room by Discord channel ID.
@@ -173,15 +181,19 @@ class Database:
         Returns:
             Created RoomLink object.
         """
-        link = RoomLink(
-            source_room_id=source_room_id,
-            target_room_id=target_room_id,
-            link_type=link_type,
-        )
-        self.session.add(link)
-        self.session.commit()
-        self.session.refresh(link)
-        return link
+        try:
+            link = RoomLink(
+                source_room_id=source_room_id,
+                target_room_id=target_room_id,
+                link_type=link_type,
+            )
+            self.session.add(link)
+            self.session.commit()
+            self.session.refresh(link)
+            return link
+        except Exception:
+            self.session.rollback()
+            raise
 
     def get_linked_rooms(self, room_id: int) -> list[Room]:
         """Get rooms linked to a target room.
@@ -246,13 +258,60 @@ class Database:
         Returns:
             Updated Room object or None.
         """
-        room = self.session.get(Room, room_id)
-        if not room:
-            return None
-        room.room_type = room_type
-        self.session.commit()
-        self.session.refresh(room)
-        return room
+        try:
+            room = self.session.get(Room, room_id)
+            if not room:
+                return None
+            room.room_type = room_type
+            self.session.commit()
+            self.session.refresh(room)
+            return room
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def update_room_name(self, room_id: int, name: str) -> Room | None:
+        """Update room name.
+
+        Args:
+            room_id: Room ID.
+            name: New room name.
+
+        Returns:
+            Updated Room object or None.
+        """
+        try:
+            room = self.session.get(Room, room_id)
+            if not room:
+                return None
+            room.name = name
+            self.session.commit()
+            self.session.refresh(room)
+            return room
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def mark_room_deleted(self, room_id: int) -> Room | None:
+        """Mark room as deleted.
+
+        Args:
+            room_id: Room ID.
+
+        Returns:
+            Updated Room object or None.
+        """
+        try:
+            room = self.session.get(Room, room_id)
+            if not room:
+                return None
+            room.deleted_at = datetime.now(UTC)
+            self.session.commit()
+            self.session.refresh(room)
+            return room
+        except Exception:
+            self.session.rollback()
+            raise
 
     # Message operations
 
@@ -278,18 +337,22 @@ class Database:
         Returns:
             Created Message object.
         """
-        message = Message(
-            room_id=room_id,
-            sender_name=sender_name,
-            sender_id=sender_id,
-            content=content,
-            message_type=message_type,
-            discord_message_id=discord_message_id,
-        )
-        self.session.add(message)
-        self.session.commit()
-        self.session.refresh(message)
-        return message
+        try:
+            message = Message(
+                room_id=room_id,
+                sender_name=sender_name,
+                sender_id=sender_id,
+                content=content,
+                message_type=message_type,
+                discord_message_id=discord_message_id,
+            )
+            self.session.add(message)
+            self.session.commit()
+            self.session.refresh(message)
+            return message
+        except Exception:
+            self.session.rollback()
+            raise
 
     def get_messages_by_room(
         self,
@@ -399,19 +462,23 @@ class Database:
         Returns:
             Created Attachment object.
         """
-        attachment = Attachment(
-            message_id=message_id,
-            file_name=file_name,
-            file_path=file_path,
-            file_type=file_type,
-            file_size=file_size,
-            drive_path=drive_path,
-            transcription=transcription,
-        )
-        self.session.add(attachment)
-        self.session.commit()
-        self.session.refresh(attachment)
-        return attachment
+        try:
+            attachment = Attachment(
+                message_id=message_id,
+                file_name=file_name,
+                file_path=file_path,
+                file_type=file_type,
+                file_size=file_size,
+                drive_path=drive_path,
+                transcription=transcription,
+            )
+            self.session.add(attachment)
+            self.session.commit()
+            self.session.refresh(attachment)
+            return attachment
+        except Exception:
+            self.session.rollback()
+            raise
 
     def get_latest_attachment_by_room(self, room_id: int) -> Attachment | None:
         """Get latest attachment in a room.
@@ -438,11 +505,15 @@ class Database:
             attachment_id: Attachment ID.
             drive_path: Google Drive file ID or path.
         """
-        attachment = self.session.get(Attachment, attachment_id)
-        if not attachment:
-            return
-        attachment.drive_path = drive_path
-        self.session.commit()
+        try:
+            attachment = self.session.get(Attachment, attachment_id)
+            if not attachment:
+                return
+            attachment.drive_path = drive_path
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
 
     # Reminder operations
 
@@ -464,16 +535,20 @@ class Database:
         Returns:
             Created Reminder object.
         """
-        reminder = Reminder(
-            workspace_id=workspace_id,
-            title=title,
-            due_date=due_date,
-            description=description,
-        )
-        self.session.add(reminder)
-        self.session.commit()
-        self.session.refresh(reminder)
-        return reminder
+        try:
+            reminder = Reminder(
+                workspace_id=workspace_id,
+                title=title,
+                due_date=due_date,
+                description=description,
+            )
+            self.session.add(reminder)
+            self.session.commit()
+            self.session.refresh(reminder)
+            return reminder
+        except Exception:
+            self.session.rollback()
+            raise
 
     def get_reminders_by_workspace(
         self,
@@ -545,13 +620,17 @@ class Database:
         Returns:
             Updated Reminder object.
         """
-        reminder = self.get_reminder_by_id(reminder_id)
-        if reminder is None:
-            raise ValueError(f"Reminder with ID {reminder_id} not found")
-        reminder.status = status
-        self.session.commit()
-        self.session.refresh(reminder)
-        return reminder
+        try:
+            reminder = self.get_reminder_by_id(reminder_id)
+            if reminder is None:
+                raise ValueError(f"Reminder with ID {reminder_id} not found")
+            reminder.status = status
+            self.session.commit()
+            self.session.refresh(reminder)
+            return reminder
+        except Exception:
+            self.session.rollback()
+            raise
 
     def update_reminder_notified(
         self,
@@ -567,13 +646,17 @@ class Database:
         Returns:
             Updated Reminder object.
         """
-        reminder = self.get_reminder_by_id(reminder_id)
-        if reminder is None:
-            raise ValueError(f"Reminder with ID {reminder_id} not found")
-        reminder.notified = notified
-        self.session.commit()
-        self.session.refresh(reminder)
-        return reminder
+        try:
+            reminder = self.get_reminder_by_id(reminder_id)
+            if reminder is None:
+                raise ValueError(f"Reminder with ID {reminder_id} not found")
+            reminder.notified = notified
+            self.session.commit()
+            self.session.refresh(reminder)
+            return reminder
+        except Exception:
+            self.session.rollback()
+            raise
 
     def delete_reminder(self, reminder_id: int) -> bool:
         """Delete a reminder.
@@ -584,12 +667,16 @@ class Database:
         Returns:
             True if deleted, False if not found.
         """
-        reminder = self.get_reminder_by_id(reminder_id)
-        if reminder is None:
-            return False
-        self.session.delete(reminder)
-        self.session.commit()
-        return True
+        try:
+            reminder = self.get_reminder_by_id(reminder_id)
+            if reminder is None:
+                return False
+            self.session.delete(reminder)
+            self.session.commit()
+            return True
+        except Exception:
+            self.session.rollback()
+            raise
 
     # VoiceSession operations
 
@@ -609,15 +696,19 @@ class Database:
         Returns:
             Created VoiceSession object.
         """
-        session = VoiceSession(
-            room_id=room_id,
-            start_time=start_time,
-            participants=participants,
-        )
-        self.session.add(session)
-        self.session.commit()
-        self.session.refresh(session)
-        return session
+        try:
+            voice_session = VoiceSession(
+                room_id=room_id,
+                start_time=start_time,
+                participants=participants,
+            )
+            self.session.add(voice_session)
+            self.session.commit()
+            self.session.refresh(voice_session)
+            return voice_session
+        except Exception:
+            self.session.rollback()
+            raise
 
     def get_voice_session_by_id(self, session_id: int) -> VoiceSession | None:
         """Get voice session by ID.
@@ -687,14 +778,18 @@ class Database:
         Returns:
             Updated VoiceSession object.
         """
-        voice_session = self.get_voice_session_by_id(session_id)
-        if voice_session is None:
-            raise ValueError(f"VoiceSession with ID {session_id} not found")
-        voice_session.end_time = end_time
-        voice_session.file_path = file_path
-        self.session.commit()
-        self.session.refresh(voice_session)
-        return voice_session
+        try:
+            voice_session = self.get_voice_session_by_id(session_id)
+            if voice_session is None:
+                raise ValueError(f"VoiceSession with ID {session_id} not found")
+            voice_session.end_time = end_time
+            voice_session.file_path = file_path
+            self.session.commit()
+            self.session.refresh(voice_session)
+            return voice_session
+        except Exception:
+            self.session.rollback()
+            raise
 
     def update_voice_session_transcription(
         self,
@@ -710,13 +805,17 @@ class Database:
         Returns:
             Updated VoiceSession object.
         """
-        voice_session = self.get_voice_session_by_id(session_id)
-        if voice_session is None:
-            raise ValueError(f"VoiceSession with ID {session_id} not found")
-        voice_session.transcription = transcription
-        self.session.commit()
-        self.session.refresh(voice_session)
-        return voice_session
+        try:
+            voice_session = self.get_voice_session_by_id(session_id)
+            if voice_session is None:
+                raise ValueError(f"VoiceSession with ID {session_id} not found")
+            voice_session.transcription = transcription
+            self.session.commit()
+            self.session.refresh(voice_session)
+            return voice_session
+        except Exception:
+            self.session.rollback()
+            raise
 
     def delete_voice_session(self, session_id: int) -> bool:
         """Delete a voice session.
@@ -727,9 +826,13 @@ class Database:
         Returns:
             True if deleted, False if not found.
         """
-        voice_session = self.get_voice_session_by_id(session_id)
-        if voice_session is None:
-            return False
-        self.session.delete(voice_session)
-        self.session.commit()
-        return True
+        try:
+            voice_session = self.get_voice_session_by_id(session_id)
+            if voice_session is None:
+                return False
+            self.session.delete(voice_session)
+            self.session.commit()
+            return True
+        except Exception:
+            self.session.rollback()
+            raise

@@ -53,6 +53,7 @@ class TestMessageHandler:
         author_id: int = 123,
         guild_id: int | None = 456,
         channel_id: int = 789,
+        channel_name: str = "test-channel",
         message_id: int = 111,
         attachments: list | None = None,
     ) -> MessageData:
@@ -63,6 +64,7 @@ class TestMessageHandler:
             author_id=author_id,
             guild_id=guild_id,
             channel_id=channel_id,
+            channel_name=channel_name,
             message_id=message_id,
             attachments=attachments or [],
         )

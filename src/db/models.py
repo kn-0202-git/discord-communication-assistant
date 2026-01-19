@@ -66,6 +66,7 @@ class Room(Base):
     room_type: Mapped[str] = mapped_column(String(50), nullable=False)
     ai_config: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="rooms")

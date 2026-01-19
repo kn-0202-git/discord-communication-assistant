@@ -18,6 +18,7 @@ class MessageData(TypedDict):
     author_id: int
     guild_id: int | None
     channel_id: int
+    channel_name: str
     message_id: int
     attachments: list[dict[str, Any]]
 
@@ -76,6 +77,7 @@ class MessageListener:
             "author_id": message.author.id,
             "guild_id": message.guild.id if message.guild else None,
             "channel_id": message.channel.id,
+            "channel_name": getattr(message.channel, "name", f"channel-{message.channel.id}"),
             "message_id": message.id,
             "attachments": self._extract_attachments(message),
         }

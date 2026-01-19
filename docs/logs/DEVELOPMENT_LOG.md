@@ -13,6 +13,97 @@
 
 ---
 
+## 2026-01-19: R-issue17 Room管理改善
+
+### Agent
+
+Claude Opus 4.5
+
+### 目標
+
+手動テストで発見された問題を修正し、Room管理を改善する:
+1. DBセッションエラーリカバリー（PendingRollbackError対策）
+2. Room名がIDで表示される問題の修正
+3. Room名変更の追従（Discordイベント）
+4. Room削除時の記録（deleted_atフィールド）
+
+### 実施内容
+
+#### 1. DBセッションエラーリカバリー
+
+database.pyの全write操作（約15メソッド）にtry-exceptを追加:
+```python
+def save_message(self, room_id: int, ...) -> Message:
+    try:
+        message = Message(...)
+        self.session.add(message)
+        self.session.commit()
+        self.session.refresh(message)
+        return message
+    except Exception:
+        self.session.rollback()
+        raise
+```
+
+対象メソッド: create_workspace, create_room, create_room_link, update_room_type, update_room_name, mark_room_deleted, save_message, save_attachment, update_attachment_drive_path, create_reminder, update_reminder_status, update_reminder_notified, delete_reminder, create_voice_session, update_voice_session_end, update_voice_session_transcription, delete_voice_session
+
+#### 2. Room名修正
+
+- MessageDataにchannel_nameフィールド追加
+- message_service.pyでRoom作成時にchannel_nameを使用
+- フォールバック: channel_nameがない場合は`Room-{channel_id}`
+
+#### 3. マイグレーション機能
+
+Bot起動時に既存RoomのRoom名をDiscord APIから取得して更新:
+- `Room-{ID}`形式の名前を持つRoomを検索
+- Discord APIでチャンネル名を取得
+- 存在しないチャンネルはdeleted_atを設定
+
+#### 4. イベントリスナー
+
+- `on_guild_channel_update`: チャンネル名変更時にRoom名を自動更新
+- `on_guild_channel_delete`: チャンネル削除時にdeleted_atを設定
+
+### 発生したエラーと解決
+
+1. **pyrightエラー**: `channel.name`がPrivateChannelでは存在しない
+   - 解決: `getattr(channel, "name", None)`で安全にアクセス
+
+2. **テストフィクスチャ**: MessageDataに`channel_name`が必要
+   - 解決: test_handler.py, test_message_service.pyのフィクスチャ更新
+
+### テスト結果
+
+- コマンド: `uv run pytest tests/ -v`
+- 結果: 284 passed, 2 failed（既存のGoogle Drive問題）
+- pyright: 0 errors（変更ファイル）
+- ruff: All checks passed
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|----------|----------|
+| src/db/database.py | 全write操作にrollback追加、update_room_name/mark_room_deleted追加 |
+| src/db/models.py | Roomにdeleted_atフィールド追加 |
+| src/bot/listeners.py | MessageDataにchannel_name追加 |
+| src/bot/services/message_service.py | Room作成時にchannel_name使用 |
+| src/bot/initializer.py | _migrate_room_names追加、イベントリスナー追加 |
+| tests/test_handler.py | channel_nameフィクスチャ追加 |
+| tests/test_message_service.py | channel_nameフィクスチャ追加 |
+
+### スコープ外（R-issue19に延期）
+
+- Room名変更履歴マスタ
+- 削除済みRoom表示（`#room名（削除済み）`）
+
+### 次のステップ
+
+- R-issue19: Room名変更履歴マスタ + 削除済みRoom表示
+- Google Drive Storageテスト問題の修正
+
+---
+
 ## 2026-01-17: Step 5.5 Geminiレビュー対応（G8, G6, G7）
 
 ### Agent
