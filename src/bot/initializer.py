@@ -114,6 +114,9 @@ class BotInitializer:
 
         logger.info(f"Bot logged in as {self._client.user}")
 
+        # 既存RoomのDiscordチャンネル名を更新
+        await self._migrate_room_names()
+
         # スラッシュコマンドを登録
         if self.components.router:
             tree = await setup_commands(
@@ -132,6 +135,56 @@ class BotInitializer:
 
         logger.info("Bot is ready!")
 
+    async def _migrate_room_names(self) -> None:
+        """既存Roomの名前をDiscordチャンネル名に更新する."""
+        if self._client is None:
+            return
+
+        from sqlalchemy import select
+
+        from src.db.models import Room
+
+        # Room-{ID}形式の名前を持つRoomを取得
+        stmt = select(Room).where(Room.name.like("Room-%"))
+        rooms = list(self.components.db.session.execute(stmt).scalars().all())
+
+        if not rooms:
+            return
+
+        logger.info(f"Migrating {len(rooms)} room names...")
+        updated_count = 0
+        deleted_count = 0
+
+        for room in rooms:
+            try:
+                # Discord APIからチャンネル情報を取得
+                channel = self._client.get_channel(int(room.discord_channel_id))
+                if channel is None:
+                    # キャッシュにない場合はAPIで取得
+                    try:
+                        channel = await self._client.fetch_channel(int(room.discord_channel_id))
+                    except discord.NotFound:
+                        # チャンネルが削除されている
+                        self.components.db.mark_room_deleted(room.id)
+                        deleted_count += 1
+                        logger.info(f"Room {room.id} marked as deleted (channel not found)")
+                        continue
+                    except discord.Forbidden:
+                        # アクセス権限がない
+                        logger.warning(f"No permission to access channel {room.discord_channel_id}")
+                        continue
+
+                if channel:
+                    channel_name = getattr(channel, "name", None)
+                    if channel_name:
+                        self.components.db.update_room_name(room.id, channel_name)
+                        updated_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to migrate room {room.id}: {e}")
+
+        if updated_count > 0 or deleted_count > 0:
+            logger.info(f"Migrated {updated_count} room names, marked {deleted_count} as deleted")
+
     def _register_events(self) -> None:
         """イベントハンドラーを登録する."""
         if self._client is None or self._listener is None:
@@ -144,6 +197,25 @@ class BotInitializer:
                 return
             await self._listener.on_message(message)
             await self._handle_notification(message)
+
+        @self._client.event
+        async def on_guild_channel_update(
+            before: discord.abc.GuildChannel, after: discord.abc.GuildChannel
+        ) -> None:
+            """チャンネル更新時にRoom名を更新."""
+            if before.name != after.name:
+                room = self.components.db.get_room_by_discord_id(str(after.id))
+                if room:
+                    self.components.db.update_room_name(room.id, after.name)
+                    logger.info(f"Room name updated: {before.name} -> {after.name}")
+
+        @self._client.event
+        async def on_guild_channel_delete(channel: discord.abc.GuildChannel) -> None:
+            """チャンネル削除時にRoomをdeleted扱いに."""
+            room = self.components.db.get_room_by_discord_id(str(channel.id))
+            if room:
+                self.components.db.mark_room_deleted(room.id)
+                logger.info(f"Room marked as deleted: {channel.name}")
 
     async def _handle_notification(self, message: discord.Message) -> None:
         """新規メッセージの通知処理."""

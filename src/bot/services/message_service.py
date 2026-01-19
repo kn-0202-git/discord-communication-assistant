@@ -107,13 +107,14 @@ class MessageService:
         # Roomを取得または作成
         room = self.db.get_room_by_discord_id(channel_id)
         if room is None:
+            channel_name = data.get("channel_name", f"Room-{channel_id}")
             room = self.db.create_room(
                 workspace_id=workspace.id,
-                name=f"Room-{channel_id}",
+                name=channel_name,
                 discord_channel_id=channel_id,
                 room_type="topic",
             )
-            logger.info(f"Created new room for channel {channel_id}")
+            logger.info(f"Created new room '{channel_name}' for channel {channel_id}")
 
         return room
 
